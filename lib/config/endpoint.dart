@@ -15,4 +15,7 @@ class Endpoint {
 
   // bengkel
   static const String listBengkelUrl = '/api/bengkel/list';
+
+  //cart
+  static const String cartUrl = '/api/cart';
 }

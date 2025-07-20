@@ -7,6 +7,7 @@ import 'package:flutter_bengkelin_user/model/bengkel_model.dart';
 import 'package:flutter_bengkelin_user/model/product_model.dart';
 import 'package:flutter_bengkelin_user/viewmodel/bengkel_viewmodel.dart';
 import 'package:flutter_bengkelin_user/viewmodel/product_viewmodel.dart';
+import 'package:flutter_bengkelin_user/views/cart_page.dart';
 import 'package:flutter_bengkelin_user/views/product_detail_page.dart';
 import 'package:flutter_bengkelin_user/views/profile_page.dart';
 import 'package:flutter_bengkelin_user/widget/custom_toast.dart';
@@ -157,18 +158,12 @@ class _HomePageState extends State<HomePage> {
                       ],
                     ),
                     const Spacer(),
-                    // Container(
-                    //   padding: const EdgeInsets.all(8),
-                    //   decoration: BoxDecoration(
-                    //     color: Colors.white,
-                    //     borderRadius: BorderRadius.circular(12),
-                    //     border: Border.all(color: Colors.grey[300]!),
-                    //   ),
-                    //   child: const Icon(
-                    //     Icons.bookmark_border,
-                    //     color: Colors.grey,
-                    //   ),
-                    // ),
+                    IconButton(
+                      icon: const Icon(Icons.shopping_cart_outlined, color: Colors.black),
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => CartPage(),));
+                      },
+                    ),
                   ],
                 ),
               ),

@@ -80,11 +80,11 @@ class Network {
         // );
       }
       if (e.response != null) {
-        debugPrint(e.response!.data);
-        debugPrint(e.response!.headers.toString());
-        debugPrint(e.response!.requestOptions.toString());
+        // debugPrint(e.response!.data);
+        // debugPrint(e.response!.headers.toString());
+        // debugPrint(e.response!.requestOptions.toString());
 
-        // return jsonDecode(e.response.toString());
+        return jsonDecode(e.response.toString());
         return e.response!.data;
       } else {
         // Something happened in setting up or sending the request that triggered an Error
@@ -145,6 +145,45 @@ class Network {
       ]);
 
       Response restGet = await dio.get(url, options: Options(headers: header));
+      debugPrint("getApiWithHeaders: ${restGet.data}");
+      dio.close();
+      header.clear();
+      return restGet.data;
+    } on DioException catch (e) {
+      debugPrint("getApiWithHeaders: ${e.response?.statusCode}");
+      if (e.response?.statusCode == 401) {
+        debugPrint("Token expired");
+        await Session().logout();
+        // 👇 Navigate to login if refresh fails
+        // navigatorKey.currentState?.pushNamedAndRemoveUntil(
+        //   '/',
+        //   (route) => false,
+        // );
+      }
+      if (e.response?.statusCode == 500) {
+        debugPrint("loh error apa ${e.response?.statusMessage}");
+        // showGlobalToast(msg: e.response?.statusMessage,);
+      }
+    }
+  }
+
+  static Future<dynamic> deleteApiWithHeaders(String url, Map<String, dynamic> header) async {
+    try {
+      var dio = Dio(
+        BaseOptions(
+          baseUrl: baseUrl,
+          connectTimeout: const Duration(milliseconds: 500000),
+          receiveTimeout: const Duration(milliseconds: 300000),
+          responseType: ResponseType.json,
+          maxRedirects: 0,
+        ),
+      )..interceptors.addAll([
+        // AuthorizationInterceptor(),
+        LoggerInterceptor(),
+        // LanguageInterceptor(),
+      ]);
+
+      Response restGet = await dio.delete(url, options: Options(headers: header));
       debugPrint("getApiWithHeaders: ${restGet.data}");
       dio.close();
       header.clear();

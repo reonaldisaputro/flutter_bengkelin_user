@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bengkelin_user/model/product_model.dart';
+import 'package:flutter_bengkelin_user/viewmodel/cart_viewmodel.dart';
+import 'package:flutter_bengkelin_user/views/cart_page.dart';
 import 'package:flutter_bengkelin_user/views/checkout_page.dart';
+import 'package:flutter_bengkelin_user/widget/custom_toast.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 
@@ -197,26 +200,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 25.0),
                 child: ElevatedButton(
                   onPressed: () {
-                    final Map<String, dynamic> productDataForCheckout = {
-                      'id': product.id,
-                      'name': product.name,
-                      'price': product.price,
-                      'image': product.image,
-                      'description': product.description,
-                      'quantity': quantity,
-                    };
-
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CheckoutPage(
-                          productToCheckout: productDataForCheckout,
-                          totalPrice: totalPrice.toDouble(),
-                          selectedService: productDataForCheckout,
-                          selectedServices: null,
-                        ),
-                      ),
-                    );
+                    handleAddCart();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4F625D),
@@ -243,5 +227,18 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         ),
       ),
     );
+  }
+
+
+  handleAddCart() async {
+    CartViewmodel().addCart(bengkelId: widget.product.bengkel.id, productId: widget.product.id).then((value) {
+      if (value.code == 200){
+        if (!mounted) return;
+        Navigator.push(context, MaterialPageRoute(builder: (context) => CartPage(),));
+      } else {
+        if (!mounted) return;
+        showToast(context: context, msg: value.message);
+      }
+    },);
   }
 }
