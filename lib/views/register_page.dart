@@ -1,6 +1,7 @@
 // lib/view/register_page.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bengkelin_user/viewmodel/auth_viewmodel.dart';
 import 'package:flutter_bengkelin_user/viewmodel/service_viewmodel.dart';
 import 'package:flutter_bengkelin_user/model/kecamatan_model.dart'; // Pastikan path ini benar
 import 'package:flutter_bengkelin_user/model/kelurahan_model.dart'; // Pastikan path ini benar
@@ -24,7 +25,6 @@ class _RegisterPageState extends State<RegisterPage> {
   List<KelurahanModel> kelurahanModelList = [];
 
   final TextEditingController _fullNameController = TextEditingController();
-  final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
@@ -42,7 +42,6 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   void dispose() {
     _fullNameController.dispose();
-    _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -79,6 +78,7 @@ class _RegisterPageState extends State<RegisterPage> {
         );
       }
     } catch (e) {
+      debugPrint("Error fetching kecamatan: $e");
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error fetching kecamatan: $e')));
@@ -151,24 +151,6 @@ class _RegisterPageState extends State<RegisterPage> {
               controller: _fullNameController,
               decoration: InputDecoration(
                 hintText: 'Nama Lengkap',
-                hintStyle: TextStyle(color: Colors.grey[500]),
-                fillColor: Colors.white,
-                filled: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _usernameController,
-              decoration: InputDecoration(
-                hintText: 'Username',
                 hintStyle: TextStyle(color: Colors.grey[500]),
                 fillColor: Colors.white,
                 filled: true,
@@ -414,15 +396,12 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _handleRegister() async {
-    // Basic form validation
     final fullName = _fullNameController.text.trim();
-    final username = _usernameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     final confirmPassword = _confirmPasswordController.text;
 
     if (fullName.isEmpty ||
-        username.isEmpty ||
         email.isEmpty ||
         password.isEmpty ||
         confirmPassword.isEmpty) {
@@ -448,41 +427,34 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    // Tampilkan loading indicator
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final Resp response = await ServiceViewmodel().registerUser(
-        fullName: fullName,
-        username: username,
+      final Resp response = await AuthViewmodel().register(
+        name: fullName,
         email: email,
-        kecamatanId: selectedKecamatan!.id,
-        kelurahanId: selectedKelurahan!.id,
+        phone: "0895375837434",
+        kecamatanId: selectedKecamatan!.id.toString(),
+        kelurahanId: selectedKelurahan!.id.toString(),
         password: password,
       );
 
-      // Sembunyikan loading indicator
       setState(() {
         _isLoading = false;
       });
 
-      // Periksa apakah registrasi berhasil berdasarkan respons API
-      // Ini bisa berdasarkan response.code, response.statusCode, atau response.success
       if ((response.success == true) ||
           (response.code == 200 || response.statusCode == 200)) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(response.message ?? 'Registrasi berhasil!')),
         );
-        // Navigasi ke halaman login atau home setelah registrasi berhasil
+
         Navigator.pop(
           context,
-        ); // Kembali ke halaman sebelumnya (misal halaman login)
-        // Contoh navigasi ke halaman login jika Anda memiliki rutenya
-        // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginPage()));
+        );
       } else {
-        // Registrasi gagal, tampilkan pesan error dari backend
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -494,17 +466,15 @@ class _RegisterPageState extends State<RegisterPage> {
         );
       }
     } catch (e) {
-      // Sembunyikan loading indicator jika ada error
       setState(() {
         _isLoading = false;
       });
-      // Tangani error jaringan atau error tak terduga lainnya
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Terjadi kesalahan saat registrasi: $e')),
       );
       debugPrint(
         'Error during registration: $e',
-      ); // Untuk debugging lebih lanjut
+      );
     }
   }
 }

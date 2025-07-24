@@ -26,8 +26,7 @@ class Network {
           connectTimeout: const Duration(milliseconds: 500000),
           receiveTimeout: const Duration(milliseconds: 300000),
           responseType: ResponseType.json,
-          maxRedirects: 0,
-          contentType: 'application/json',
+          contentType: 'application/json', // default content type
         ),
       )..interceptors.addAll([
         // AuthorizationInterceptor(),
@@ -35,17 +34,29 @@ class Network {
         // LanguageInterceptor(),
       ]);
 
-      Response rest = await dio.post(url, data: formData);
+      Response rest = await dio.post(
+        url,
+        data: formData,
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          followRedirects: false,
+          validateStatus: (status) => status != null && status < 400,
+        ),
+      );
+
       dio.close();
       return rest.data;
     } on DioException catch (e) {
       if (e.response != null) {
-        return jsonDecode(e.response.toString());
+        return e.response?.data; // lebih aman daripada jsonDecode dari toString()
       } else {
-        // Something happened in setting up or sending the request that triggered an Error
+        return {'error': 'Request failed: ${e.message}'};
       }
     }
   }
+
 
   static Future<dynamic> postApiWithHeaders(String url, body, Map<String, dynamic> header) async {
     try {

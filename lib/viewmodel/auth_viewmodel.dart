@@ -26,14 +26,19 @@ class AuthViewmodel {
       "name": name,
       "email": email,
       "phone_number": phone,
-      "kecamatan_id": kecamatanId,
-      "kelurahan_id": kelurahanId,
+      "alamat": "Jl. Contoh",
+      "kecamatan_id": int.parse(kecamatanId.toString()),
+      "kelurahan_id": int.parse(kelurahanId.toString()),
       "password": password,
-      "password_confirmation": confirmPassword,
+      "password_confirmation": password,
     };
+    debugPrint("form $formData");
 
     var resp = await Network.postApi(Endpoint.authRegisterUrl, formData);
-    var data = Resp.fromJson(resp);
-    return data;
+    if (resp is Map<String, dynamic>) {
+      return Resp.fromJson(resp);
+    } else {
+      throw Exception("Invalid response format: expected Map but got ${resp.runtimeType}");
+    }
   }
 }
