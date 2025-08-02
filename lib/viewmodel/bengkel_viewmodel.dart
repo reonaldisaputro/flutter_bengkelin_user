@@ -11,4 +11,10 @@ class BengkelViewmodel {
     Resp data = Resp.fromJson(resp);
     return data;
   }
+
+  Future<Resp> detailBengkel({bengkelId}) async {
+    var resp = await Network.getApi("${Endpoint.bengkelUrl}/$bengkelId");
+    Resp data = Resp.fromJson(resp);
+    return data;
+  }
 }

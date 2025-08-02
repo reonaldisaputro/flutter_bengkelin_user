@@ -20,19 +20,21 @@ class Network {
   Network._internal();
   static Future<dynamic> postApi(String url, dynamic formData) async {
     try {
-      var dio = Dio(
-        BaseOptions(
-          baseUrl: baseUrl,
-          connectTimeout: const Duration(milliseconds: 500000),
-          receiveTimeout: const Duration(milliseconds: 300000),
-          responseType: ResponseType.json,
-          contentType: 'application/json', // default content type
-        ),
-      )..interceptors.addAll([
-        // AuthorizationInterceptor(),
-        LoggerInterceptor(),
-        // LanguageInterceptor(),
-      ]);
+      var dio =
+          Dio(
+              BaseOptions(
+                baseUrl: baseUrl,
+                connectTimeout: const Duration(milliseconds: 500000),
+                receiveTimeout: const Duration(milliseconds: 300000),
+                responseType: ResponseType.json,
+                contentType: 'application/json', // default content type
+              ),
+            )
+            ..interceptors.addAll([
+              // AuthorizationInterceptor(),
+              LoggerInterceptor(),
+              // LanguageInterceptor(),
+            ]);
 
       Response rest = await dio.post(
         url,
@@ -40,6 +42,11 @@ class Network {
         options: Options(
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                'AppleWebKit/537.36 (KHTML, like Gecko) '
+                'Chrome/115.0.0.0 Safari/537.36',
+            // 'X-From-App': 'flutter',
           },
           followRedirects: false,
           validateStatus: (status) => status != null && status < 400,
@@ -50,33 +57,43 @@ class Network {
       return rest.data;
     } on DioException catch (e) {
       if (e.response != null) {
-        return e.response?.data; // lebih aman daripada jsonDecode dari toString()
+        return e
+            .response
+            ?.data; // lebih aman daripada jsonDecode dari toString()
       } else {
         return {'error': 'Request failed: ${e.message}'};
       }
     }
   }
 
-
-  static Future<dynamic> postApiWithHeaders(String url, body, Map<String, dynamic> header) async {
+  static Future<dynamic> postApiWithHeaders(
+    String url,
+    body,
+    Map<String, dynamic> header,
+  ) async {
     try {
-      var dio = Dio(
-        BaseOptions(
-          baseUrl: baseUrl,
-          connectTimeout: const Duration(milliseconds: 500000),
-          receiveTimeout: const Duration(milliseconds: 300000),
-          responseType: ResponseType.json,
-          maxRedirects: 0,
-        ),
-      )..interceptors.addAll([
-        // AuthorizationInterceptor(),
-        LoggerInterceptor(),
-        // LanguageInterceptor(),
-      ]);
+      var dio =
+          Dio(
+              BaseOptions(
+                baseUrl: baseUrl,
+                connectTimeout: const Duration(milliseconds: 500000),
+                receiveTimeout: const Duration(milliseconds: 300000),
+                responseType: ResponseType.json,
+                maxRedirects: 0,
+              ),
+            )
+            ..interceptors.addAll([
+              // AuthorizationInterceptor(),
+              LoggerInterceptor(),
+              // LanguageInterceptor(),
+            ]);
 
       debugPrint("url: $url");
-      Response restValue =
-      await dio.post(url, data: body, options: Options(headers: header));
+      Response restValue = await dio.post(
+        url,
+        data: body,
+        options: Options(headers: header),
+      );
       debugPrint("postApiWithHeaders: ${restValue.data}");
       dio.close();
       header.clear();
@@ -107,19 +124,21 @@ class Network {
 
   static Future<dynamic> getApi(String url, {String? baseurl}) async {
     try {
-      var dio = Dio(
-        BaseOptions(
-          baseUrl: baseurl ?? baseUrl,
-          connectTimeout: const Duration(milliseconds: 500000),
-          receiveTimeout: const Duration(milliseconds: 300000),
-          responseType: ResponseType.json,
-          maxRedirects: 0,
-        ),
-      )..interceptors.addAll([
-        // AuthorizationInterceptor(),
-        LoggerInterceptor(),
-        // LanguageInterceptor(),
-      ]);
+      var dio =
+          Dio(
+              BaseOptions(
+                baseUrl: baseurl ?? baseUrl,
+                connectTimeout: const Duration(milliseconds: 500000),
+                receiveTimeout: const Duration(milliseconds: 300000),
+                responseType: ResponseType.json,
+                maxRedirects: 0,
+              ),
+            )
+            ..interceptors.addAll([
+              // AuthorizationInterceptor(),
+              LoggerInterceptor(),
+              // LanguageInterceptor(),
+            ]);
 
       Response restGet = await dio.get(url);
       dio.close();
@@ -139,8 +158,21 @@ class Network {
     }
   }
 
-  static Future<dynamic> getApiWithHeaders(String url, Map<String, dynamic> header) async {
+  static Future<dynamic> getApiWithHeaders(
+      String url,
+      Map<String, dynamic> header,
+      ) async {
     try {
+      // Tambahkan header identitas Flutter
+      header.addAll({
+        'X-From-App': 'flutter',
+        'Accept': 'application/json',
+        'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+            'AppleWebKit/537.36 (KHTML, like Gecko) '
+            'Chrome/92.0.4515.159 Safari/537.36',
+      });
+
       var dio = Dio(
         BaseOptions(
           baseUrl: baseUrl,
@@ -150,12 +182,17 @@ class Network {
           maxRedirects: 0,
         ),
       )..interceptors.addAll([
-        // AuthorizationInterceptor(),
         LoggerInterceptor(),
-        // LanguageInterceptor(),
       ]);
 
-      Response restGet = await dio.get(url, options: Options(headers: header));
+      debugPrint("url: $url");
+      debugPrint("headers: $header");
+
+      Response restGet = await dio.get(
+        url,
+        options: Options(headers: header),
+      );
+
       debugPrint("getApiWithHeaders: ${restGet.data}");
       dio.close();
       header.clear();
@@ -165,36 +202,40 @@ class Network {
       if (e.response?.statusCode == 401) {
         debugPrint("Token expired");
         await Session().logout();
-        // 👇 Navigate to login if refresh fails
-        // navigatorKey.currentState?.pushNamedAndRemoveUntil(
-        //   '/',
-        //   (route) => false,
-        // );
       }
       if (e.response?.statusCode == 500) {
         debugPrint("loh error apa ${e.response?.statusMessage}");
-        // showGlobalToast(msg: e.response?.statusMessage,);
       }
+
+      return e.response?.data ?? {'error': e.message};
     }
   }
 
-  static Future<dynamic> deleteApiWithHeaders(String url, Map<String, dynamic> header) async {
+  static Future<dynamic> deleteApiWithHeaders(
+    String url,
+    Map<String, dynamic> header,
+  ) async {
     try {
-      var dio = Dio(
-        BaseOptions(
-          baseUrl: baseUrl,
-          connectTimeout: const Duration(milliseconds: 500000),
-          receiveTimeout: const Duration(milliseconds: 300000),
-          responseType: ResponseType.json,
-          maxRedirects: 0,
-        ),
-      )..interceptors.addAll([
-        // AuthorizationInterceptor(),
-        LoggerInterceptor(),
-        // LanguageInterceptor(),
-      ]);
+      var dio =
+          Dio(
+              BaseOptions(
+                baseUrl: baseUrl,
+                connectTimeout: const Duration(milliseconds: 500000),
+                receiveTimeout: const Duration(milliseconds: 300000),
+                responseType: ResponseType.json,
+                maxRedirects: 0,
+              ),
+            )
+            ..interceptors.addAll([
+              // AuthorizationInterceptor(),
+              LoggerInterceptor(),
+              // LanguageInterceptor(),
+            ]);
 
-      Response restGet = await dio.delete(url, options: Options(headers: header));
+      Response restGet = await dio.delete(
+        url,
+        options: Options(headers: header),
+      );
       debugPrint("getApiWithHeaders: ${restGet.data}");
       dio.close();
       header.clear();
@@ -219,19 +260,21 @@ class Network {
 
   static Future<dynamic> putApi(String url, dynamic formData) async {
     try {
-      var dio = Dio(
-        BaseOptions(
-          baseUrl: baseUrl,
-          connectTimeout: const Duration(milliseconds: 500000),
-          receiveTimeout: const Duration(milliseconds: 300000),
-          responseType: ResponseType.json,
-          maxRedirects: 0,
-        ),
-      )..interceptors.addAll([
-        // AuthorizationInterceptor(),
-        LoggerInterceptor(),
-        // LanguageInterceptor(),
-      ]);
+      var dio =
+          Dio(
+              BaseOptions(
+                baseUrl: baseUrl,
+                connectTimeout: const Duration(milliseconds: 500000),
+                receiveTimeout: const Duration(milliseconds: 300000),
+                responseType: ResponseType.json,
+                maxRedirects: 0,
+              ),
+            )
+            ..interceptors.addAll([
+              // AuthorizationInterceptor(),
+              LoggerInterceptor(),
+              // LanguageInterceptor(),
+            ]);
 
       Response restValue = await dio.put(url, data: formData);
       dio.close();
@@ -251,24 +294,33 @@ class Network {
     }
   }
 
-  static Future<dynamic> putApiWithHeaders(String url, dynamic body, Map<String, dynamic> header) async {
+  static Future<dynamic> putApiWithHeaders(
+    String url,
+    dynamic body,
+    Map<String, dynamic> header,
+  ) async {
     try {
-      var dio = Dio(
-        BaseOptions(
-          baseUrl: baseUrl,
-          connectTimeout: const Duration(milliseconds: 500000),
-          receiveTimeout: const Duration(milliseconds: 300000),
-          responseType: ResponseType.json,
-          maxRedirects: 0,
-        ),
-      )..interceptors.addAll([
-        // AuthorizationInterceptor(),
-        LoggerInterceptor(),
-        // LanguageInterceptor(),
-      ]);
+      var dio =
+          Dio(
+              BaseOptions(
+                baseUrl: baseUrl,
+                connectTimeout: const Duration(milliseconds: 500000),
+                receiveTimeout: const Duration(milliseconds: 300000),
+                responseType: ResponseType.json,
+                maxRedirects: 0,
+              ),
+            )
+            ..interceptors.addAll([
+              // AuthorizationInterceptor(),
+              LoggerInterceptor(),
+              // LanguageInterceptor(),
+            ]);
 
-      Response restValue =
-      await dio.put(url, data: body, options: Options(headers: header));
+      Response restValue = await dio.put(
+        url,
+        data: body,
+        options: Options(headers: header),
+      );
       dio.close();
       header.clear();
       return restValue.data;

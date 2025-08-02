@@ -7,6 +7,7 @@ import 'package:flutter_bengkelin_user/model/bengkel_model.dart';
 import 'package:flutter_bengkelin_user/model/product_model.dart';
 import 'package:flutter_bengkelin_user/viewmodel/bengkel_viewmodel.dart';
 import 'package:flutter_bengkelin_user/viewmodel/product_viewmodel.dart';
+import 'package:flutter_bengkelin_user/views/bengkel_detail_page.dart';
 import 'package:flutter_bengkelin_user/views/cart_page.dart';
 import 'package:flutter_bengkelin_user/views/product_detail_page.dart';
 import 'package:flutter_bengkelin_user/views/profile_page.dart';
@@ -243,69 +244,74 @@ class _HomePageState extends State<HomePage> {
                 itemCount: _bengkel.length,
                 itemBuilder: (context, index) {
                   final bengkel = _bengkel[index];
-                  return Container(
-                    width: 150,
-                    margin: const EdgeInsets.only(right: 15),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(15),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ClipRRect(
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(15),
+                  return GestureDetector(
+                    onTap: (){
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => BengkelDetailPage(bengkelId: bengkel.id),));
+                    },
+                    child: Container(
+                      width: 150,
+                      margin: const EdgeInsets.only(right: 15),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
                           ),
-                          child: Image.network(
-                            '${dotenv.env["IMAGE_BASE_URL"]}/${bengkel.image}',
-                            height: 100,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: Colors.grey[300],
-                                height: 100,
-                                child: const Center(child: Icon(Icons.broken_image)),
-                              );
-                            },
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(15),
+                            ),
+                            child: Image.network(
+                              '${dotenv.env["IMAGE_BASE_URL"]}/${bengkel.image}',
+                              height: 100,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Colors.grey[300],
+                                  height: 100,
+                                  child: const Center(child: Icon(Icons.broken_image)),
+                                );
+                              },
+                            ),
                           ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                bengkel.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  bengkel.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                bengkel.kelurahan?.name ?? 'Lokasi tidak tersedia',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
+                                const SizedBox(height: 4),
+                                Text(
+                                  bengkel.kelurahan?.name ?? 'Lokasi tidak tersedia',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   );
                 },
