@@ -221,20 +221,20 @@ class _ServiceCategoryPageState extends State<ServiceCategoryPage> {
                     child: ElevatedButton(
                       onPressed: () {
                         if (_selectedServices.isNotEmpty) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => CheckoutPage(
-                                selectedServices: _selectedServices,
-                                totalPrice:
-                                    _totalPrice, // Mengirim total harga dari ServiceCategoryPage
-                                productToCheckout:
-                                    null, // Null karena ini adalah servis, bukan produk
-                                selectedService:
-                                    null, // Null karena kita mengirim multiple services
-                              ),
-                            ),
-                          );
+                          // Navigator.push(
+                          //   context,
+                          //   MaterialPageRoute(
+                          //     builder: (context) => CheckoutPage(
+                          //       selectedServices: _selectedServices,
+                          //       totalPrice:
+                          //           _totalPrice, // Mengirim total harga dari ServiceCategoryPage
+                          //       productToCheckout:
+                          //           null, // Null karena ini adalah servis, bukan produk
+                          //       selectedService:
+                          //           null, // Null karena kita mengirim multiple services
+                          //     ),
+                          //   ),
+                          // );
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(

@@ -22,6 +22,9 @@ class Endpoint {
   static const String cartUrl = '/api/cart';
 
   // booking
-static const String bookingUrl = '/api/booking';
-static const String userBookingUrl = '/api/user/bookings';
+  static const String bookingUrl = '/api/booking';
+  static const String userBookingUrl = '/api/user/bookings';
+
+  //checkout
+  static const String checkoutSummary = '/api/checkout-summary';
 }

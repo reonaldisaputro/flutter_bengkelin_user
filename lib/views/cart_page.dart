@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bengkelin_user/config/app_color.dart';
 import 'package:flutter_bengkelin_user/model/cart_model.dart';
 import 'package:flutter_bengkelin_user/viewmodel/cart_viewmodel.dart';
+import 'package:flutter_bengkelin_user/views/checkout_page.dart';
 import 'package:flutter_bengkelin_user/widget/custom_toast.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
@@ -229,7 +230,7 @@ class _CartPageState extends State<CartPage> {
                     onPressed: _carts.isEmpty
                         ? null
                         : () {
-                      // Handle checkout lanjutkan pembelian
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => CheckoutPage(),),);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF355E4B),
