@@ -1,9 +1,12 @@
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../config/endpoint.dart';
 import '../config/model/resp.dart';
 import '../config/network.dart';
+import '../config/pref.dart';
 
 class AuthViewmodel {
   Future<Resp> login({email, password}) async {
@@ -40,5 +43,17 @@ class AuthViewmodel {
     } else {
       throw Exception("Invalid response format: expected Map but got ${resp.runtimeType}");
     }
+  }
+
+  Future<Resp> logout() async {
+    String? token = await Session().getUserToken();
+
+    var header = <String, dynamic>{};
+    header[HttpHeaders.authorizationHeader] = 'Bearer $token';
+
+    var resp = await Network.postApiWithHeadersWithoutData(
+        Endpoint.logoutUrl,header);
+    Resp data = Resp.fromJson(resp);
+    return data;
   }
 }

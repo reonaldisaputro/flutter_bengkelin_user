@@ -1,21 +1,13 @@
 // lib/views/booking_list_page.dart
+import 'dart:collection';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bengkelin_user/config/pref.dart';
+import 'package:flutter_bengkelin_user/viewmodel/booking_viewmodel.dart';
+import 'package:intl/intl.dart';
 
-// Model data dummy untuk booking
-class Booking {
-  final String bengkelName;
-  final String bookingId;
-  final String
-  dateTime; // Bisa diubah ke DateTime object jika perlu manipulasi tanggal/waktu
-  final String status; // Misal: 'active', 'cancelled', 'completed'
-
-  Booking({
-    required this.bengkelName,
-    required this.bookingId,
-    required this.dateTime,
-    this.status = 'active', // Default status aktif
-  });
-}
+import '../model/user_booking.dart';
+import 'home_page.dart';
 
 class BookingListPage extends StatefulWidget {
   const BookingListPage({super.key});
@@ -25,230 +17,257 @@ class BookingListPage extends StatefulWidget {
 }
 
 class _BookingListPageState extends State<BookingListPage> {
-  // Data dummy untuk daftar booking
-  final List<Booking> _bookings = [
-    Booking(
-      bengkelName: 'Bengkel Pak Hambali',
-      bookingId: '#PJT193E4',
-      dateTime: 'Monday 8:00- 9:00 am July 31, 2023',
-    ),
-    Booking(
-      bengkelName: 'Bengkel Pak Hambali',
-      bookingId: '#PJT193E4',
-      dateTime: 'Monday 8:00- 9:00 am July 31, 2023',
-    ),
-    Booking(
-      bengkelName: 'Bengkel Pak Hambali',
-      bookingId: '#PJT193E4',
-      dateTime: 'Monday 8:00- 9:00 am July 31, 2023',
-    ),
-    Booking(
-      bengkelName: 'Bengkel Pak Hambali',
-      bookingId: '#PJT193E4',
-      dateTime: 'Monday 8:00- 9:00 am July 31, 2023',
-    ),
-    Booking(
-      bengkelName: 'Bengkel Pak Hambali',
-      bookingId: '#PJT193E4',
-      dateTime: 'Monday 8:00- 9:00 am July 31, 2023',
-    ),
-  ];
 
-  // Fungsi placeholder untuk membatalkan booking
-  void _cancelBooking(Booking booking) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Konfirmasi Pembatalan'),
-          content: Text(
-            'Anda yakin ingin membatalkan booking ${booking.bookingId}?',
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Tutup dialog
-              },
-              child: const Text('Tidak'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                // Di sini Anda akan memanggil API untuk membatalkan booking
-                // Contoh: YourBookingService().cancelBooking(booking.bookingId);
-                debugPrint('Membatalkan booking: ${booking.bookingId}');
-                // Setelah berhasil dari API, Anda mungkin ingin menghapus item dari list atau mengubah status
-                setState(() {
-                  // Contoh: Menghapus dari list (jika pembatalan berarti dihapus dari UI)
-                  _bookings.remove(booking);
-                  // Atau mengubah status (jika pembatalan berarti statusnya berubah, bukan dihapus)
-                  // int index = _bookings.indexOf(booking);
-                  // if (index != -1) {
-                  //   _bookings[index] = Booking(
-                  //     bengkelName: booking.bengkelName,
-                  //     bookingId: booking.bookingId,
-                  //     dateTime: booking.dateTime,
-                  //     status: 'cancelled', // Perbarui status
-                  //   );
-                  // }
-                });
-                Navigator.of(context).pop(); // Tutup dialog
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Booking ${booking.bookingId} berhasil dibatalkan.',
-                    ),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red, // Warna merah untuk batal
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Ya, Batalkan'),
-            ),
-          ],
+  bool _isLoading = true;
+  List<UserBookingModel> _listUserBooking = [];
+
+  Future<void> getUserBooking() async {
+    try {
+      final value = await BookingViewmodel().userBooking();
+
+      if (value.code == 200) {
+        final List<dynamic> listData = value.data as List<dynamic>;
+        setState(() {
+          _listUserBooking =
+              listData.map((e) => UserBookingModel.fromJson(e)).toList();
+        });
+      } else if (value.code == 401) {
+        await Session().logout();
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const HomePage()),
+                (Route<dynamic> route) => false);
+      }
+    } catch (e) {
+      debugPrint("Error fetching booking: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Gagal memuat data booking.")),
         );
-      },
-    );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  void initState() {
+    getUserBooking();
+    super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text(
-          'Your Booking',
-          style: TextStyle(
-            color: Colors.black, // Judul warna hitam sesuai gambar
-            fontWeight: FontWeight.bold,
-          ),
+        title: const Text('Riwayat Booking Anda'),
+        titleTextStyle: const TextStyle(
+          color: Color(0xFF1D2A39),
+          fontWeight: FontWeight.bold,
+          fontSize: 20,
         ),
-        backgroundColor: Colors.transparent, // Background transparan
-        elevation: 0, // Tanpa shadow
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         iconTheme: const IconThemeData(
-          color: Colors.black,
-        ), // Panah kembali warna hitam
+          color: Color(0xFF1D2A39),
+        ),
       ),
-      body: _bookings.isEmpty
-          ? const Center(child: Text('Anda belum memiliki booking.'))
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _listUserBooking.isEmpty
+          ? _buildEmptyState()
           : ListView.builder(
-              padding: const EdgeInsets.all(16.0),
-              itemCount: _bookings.length,
-              itemBuilder: (context, index) {
-                final booking = _bookings[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 16.0),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        itemCount: _listUserBooking.length,
+        itemBuilder: (context, index) {
+          final booking = _listUserBooking[index];
+          // 2. Gunakan widget Card yang baru
+          return _BookingCard(booking: booking);
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.event_note_outlined, size: 80, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          const Text(
+            'Belum Ada Booking',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Semua riwayat booking Anda akan muncul di sini.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          ),
+        ],
+      ),
+    );
+  }
+
+}
+
+class _BookingCard extends StatelessWidget {
+  final UserBookingModel booking;
+
+  const _BookingCard({required this.booking});
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return '-';
+    return DateFormat('dd MMM yyyy').format(date);
+  }
+
+  String _formatTime(DateTime? date) {
+    if (date == null) return '-';
+    return DateFormat('HH:mm').format(date);
+  }
+
+  Widget _buildStatusBadge(String? status) {
+    final ({Color backgroundColor, Color textColor}) statusInfo = _getStatusInfo(status);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: statusInfo.backgroundColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        status ?? 'Unknown',
+        style: TextStyle(
+          color: statusInfo.textColor,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  ({Color backgroundColor, Color textColor}) _getStatusInfo(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'diterima':
+        return (backgroundColor: const Color(0xFFE0F8F0), textColor: const Color(0xFF00875A));
+      case 'pending':
+        return (backgroundColor: const Color(0xFFFFF4DE), textColor: const Color(0xFFFFAA00));
+      case 'dibatalkan':
+        return (backgroundColor: const Color(0xFFFFECEB), textColor: const Color(0xFFDE350B));
+      case 'selesai':
+        return (backgroundColor: const Color(0xFFE6F7FF), textColor: const Color(0xFF0065FF));
+      default:
+        return (backgroundColor: Colors.grey.shade200, textColor: Colors.grey.shade800);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16.0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16.0),
+      ),
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.1),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16.0),
+        onTap: () {
+          // TODO: Navigasi ke halaman detail booking
+          // Navigator.push(context, MaterialPageRoute(builder: (context) => BookingDetailPage(bookingId: booking.id)));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Buka detail untuk booking ID: ${booking.id}')));
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Bagian Header: Logo, Nama Bengkel, Status
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: Colors.grey.shade100,
+                    child: Image.asset(
+                      'assets/logo_bengkel.png',
+                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.build_circle_outlined, color: Colors.grey),
+                    ),
                   ),
-                  elevation: 2.0,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                  const SizedBox(width: 12),
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            // Logo Bengkel (contoh: CircleAvatar dengan Image.asset)
-                            CircleAvatar(
-                              radius: 20,
-                              backgroundColor: Colors.transparent,
-                              // Ganti dengan logo bengkel yang sebenarnya
-                              child: Image.asset(
-                                'assets/logo_bengkel.png', // <-- Pastikan Anda memiliki aset ini
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Icon(
-                                    Icons.build,
-                                    color: Colors.grey,
-                                  );
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    booking.bengkelName,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  Text(
-                                    booking.bookingId,
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // Tombol Batalkan
-                            ElevatedButton(
-                              onPressed: () => _cancelBooking(booking),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red, // Warna merah
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(5.0),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                minimumSize:
-                                    Size.zero, // Meminimalkan ukuran tombol
-                                tapTargetSize: MaterialTapTargetSize
-                                    .shrinkWrap, // Meminimalkan area sentuh
-                              ),
-                              child: const Text(
-                                'Batalkan',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                            ),
-                          ],
+                        Text(
+                          booking.bengkel?.name ?? "Nama Bengkel",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Color(0xFF1D2A39),
+                          ),
                         ),
-                        const SizedBox(height: 15),
-                        // Bagian Tanggal dan Waktu
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF4A6B6B), // Warna hijau gelap
-                            borderRadius: BorderRadius.circular(5.0),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize
-                                .min, // Agar container sesuai konten
-                            children: [
-                              const Icon(
-                                Icons.watch_later_outlined, // Icon jam
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                booking.dateTime,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
+                        const SizedBox(height: 4),
+                        Text(
+                          'Booking ID: #${booking.id}',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 13,
                           ),
                         ),
                       ],
                     ),
                   ),
-                );
-              },
-            ),
+                  const SizedBox(width: 8),
+                  // Menggunakan status badge yang sudah dibuat
+                  _buildStatusBadge("Pending"), // <-- Ganti dengan booking.status
+                ],
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12.0),
+                child: Divider(height: 1),
+              ),
+              // Bagian Footer: Tanggal dan Waktu
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildInfoRow(
+                    icon: Icons.calendar_today_outlined,
+                    text: _formatDate(booking.createdAt),
+                  ),
+                  _buildInfoRow(
+                    icon: Icons.access_time_outlined,
+                    text: _formatTime(booking.createdAt),
+                  ),
+                ],
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow({required IconData icon, required String text}) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.grey.shade600, size: 16),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: TextStyle(
+            color: Colors.grey.shade800,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }

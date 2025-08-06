@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bengkelin_user/viewmodel/booking_viewmodel.dart';
+import 'package:flutter_bengkelin_user/views/home_page.dart';
+import 'package:flutter_bengkelin_user/widget/custom_toast.dart';
 import 'package:intl/intl.dart';
 
 class BookingFormPage extends StatefulWidget {
@@ -152,8 +155,19 @@ class _BookingFormPageState extends State<BookingFormPage> {
                   label: const Text("Selanjutnya", style: TextStyle(color: Colors.white)),
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
-                      // Handle booking submit here
-                      // Nanti kamu tinggal panggil API
+                      if (_selectedDate == null) {
+                        showToast(context: context, msg: "Tanggal service wajib diisi");
+                        return;
+                      }
+                      if (_selectedTime == null) {
+                        showToast(context: context, msg: "Waktu service wajib diisi");
+                        return;
+                      }
+                      if (_selectedTransmisi == null) {
+                        showToast(context: context, msg: "Transmisi wajib dipilih");
+                        return;
+                      }
+                      handleBookingBengkel();
                     }
                   },
                 ),
@@ -185,4 +199,37 @@ class _BookingFormPageState extends State<BookingFormPage> {
       ),
     );
   }
+
+  void handleBookingBengkel() {
+    final bookingDate = DateFormat('yyyy-MM-dd').format(_selectedDate!);
+    final time = _selectedTime!;
+    final bookingTime = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+
+
+    BookingViewmodel().bookingBengkel(
+      bengkelId: widget.bengkelId,
+      bookingDate: bookingDate,
+      timeBooking: bookingTime,
+      brand: _brandController.text.trim(),
+      model: _modelController.text.trim(),
+      plat: _platController.text.trim(),
+      tahunPembuatan: int.tryParse(_tahunController.text.trim()) ?? 0,
+      kilometer: int.tryParse(_kmController.text.trim()) ?? 0,
+      transmisi: _selectedTransmisi ?? '',
+      notes: _noteController.text.trim(),
+    ).then((value) {
+      if (value.code == 200) {
+        if (!mounted) return;
+        showToast(context: context, msg: value.message);
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomePage()),
+              (Route<dynamic> route) => false,
+        );
+      } else {
+        if (!mounted) return;
+        showToast(context: context, msg: value.message);
+      }
+    });
+  }
+
 }

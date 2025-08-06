@@ -2,6 +2,7 @@ class Endpoint {
   //auth
   static const String authLoginUrl = '/api/login';
   static const String authRegisterUrl = '/api/register';
+  static const String logoutUrl = '/api/logout';
 
   // service
   static const String kecamatanUrl = '/api/service/kecamatan';
@@ -19,4 +20,8 @@ class Endpoint {
 
   //cart
   static const String cartUrl = '/api/cart';
+
+  // booking
+static const String bookingUrl = '/api/booking';
+static const String userBookingUrl = '/api/user/bookings';
 }

@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bengkelin_user/model/user_model.dart'; // Pastikan path ini benar
+import 'package:flutter_bengkelin_user/viewmodel/auth_viewmodel.dart';
 import 'package:flutter_bengkelin_user/viewmodel/profile_viewmodel.dart'; // Pastikan path ini benar
 import 'package:flutter_bengkelin_user/views/edit_profile_page.dart';
+import 'package:flutter_bengkelin_user/views/home_page.dart';
 import 'package:flutter_bengkelin_user/views/list_booking.dart'; // Perbaikan nama file
-import 'package:flutter_bengkelin_user/views/list_transaksi.dart'; // Perbaikan nama file
+import 'package:flutter_bengkelin_user/views/list_transaksi.dart';
+
+import '../config/app_color.dart';
+import '../config/pref.dart';
+import '../widget/custom_toast.dart'; // Perbaikan nama file
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -13,20 +19,19 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  bool _isLoading = true; // Untuk menampilkan indikator loading
-  UserModel? _users; // Untuk menyimpan data profil pengguna dari backend
+  bool _isLoading = true;
+  UserModel? _users;
 
   @override
   void initState() {
     super.initState();
-    _getUserProfile(); // Panggil fungsi untuk memuat data saat inisialisasi
+    _getUserProfile();
   }
 
-  // Fungsi untuk mengambil data profil dari API
   Future<void> _getUserProfile() async {
     setState(() {
       _isLoading = true;
-      _users = null; // Reset data pengguna sebelum memuat ulang
+      _users = null;
     });
 
     try {
@@ -186,29 +191,22 @@ class _ProfilePageState extends State<ProfilePage> {
                                   debugPrint(
                                     'Profile updated. Reloading data...',
                                   );
-                                  _getUserProfile(); // Muat ulang profil setelah kembali dari edit
+                                  _getUserProfile();
                                 }
                               },
                               child: Column(
-                                // Mengganti Text langsung dengan Column
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    // Menampilkan kecamatan dari _users.alamat atau properti kecamatan
                                     _users!
-                                        .alamat, // Menggunakan alamat secara keseluruhan
+                                        .alamat,
                                     style: const TextStyle(
                                       color: Colors.black,
                                       fontSize: 14,
                                     ),
                                   ),
-                                  // Tambahkan teks Kelurahan di bawah Kecamatan
                                   Text(
-                                    // Anda perlu menyesuaikan ini untuk mengambil kelurahan dari model Anda
-                                    // Contoh: _users!.kelurahan ?? 'Kelurahan tidak tersedia',
-                                    // Jika kelurahan ada di dalam string alamat, Anda perlu parsing.
-                                    // Untuk sementara, saya akan menggunakan alamat lagi atau string kosong.
-                                    '', // Ganti dengan _users!.kelurahan atau hasil parsing alamat
+                                    '',
                                     style: const TextStyle(
                                       color: Colors
                                           .black54, // Warna sedikit berbeda
@@ -270,7 +268,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     _buildSettingsItem(
                       context,
                       icon: Icons.menu_book_sharp, // Sesuai gambar
-                      title: 'List Transkasi', // Sesuai gambar
+                      title: 'List Transaksi', // Sesuai gambar
                       subtitle: 'Lihat daftar transaksi Anda', // Ubah subtitle
                       onTap: () {
                         Navigator.push(
@@ -293,6 +291,15 @@ class _ProfilePageState extends State<ProfilePage> {
                             builder: (context) => const BookingListPage(),
                           ),
                         );
+                      },
+                    ),
+                    _buildSettingsItem(
+                      context,
+                      icon: Icons.logout,
+                      title: 'Keluar',
+                      subtitle: 'Logout dari aplikasi',
+                      onTap: () {
+                        logoutConfirm();
                       },
                     ),
                   ],
@@ -353,6 +360,107 @@ class _ProfilePageState extends State<ProfilePage> {
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 16.0,
         vertical: 4.0,
+      ),
+    );
+  }
+
+  bool isLoadingLogout = false;
+  Future logoutConfirm() {
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(6))),
+        // contentPadding:
+        //     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: EdgeInsets.zero,
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                "Keluar Aplikasi",
+                style: fontTextStyle.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                    color: AppColor.black),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Container(
+                padding:
+                const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                decoration: const BoxDecoration(
+                    border: Border.symmetric(
+                        horizontal: BorderSide(color: Color(0xFFE8EDF1)))),
+                child: Text(
+                  "Yakin ingin keluar dari aplikasi?",
+                  softWrap: true,
+                  style: fontTextStyle.copyWith(color: AppColor.black),
+                )),
+          ],
+        ),
+        actions: [
+          OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  side: const BorderSide(
+                    color: Color(0xFFE8EDF1),
+                  )),
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Batal',
+                style: fontTextStyle.copyWith(
+                    fontWeight: FontWeight.w700, color: AppColor.black),
+              )),
+          const SizedBox(width: 5),
+          if (isLoadingLogout)
+            const CircularProgressIndicator()
+          else
+            TextButton(
+              onPressed: () async {
+                setState(() {
+                  isLoadingLogout = true;
+                });
+                AuthViewmodel().logout().then((value) async {
+                  if (value.code == 200) {
+                    setState(() {
+                      isLoadingLogout = false;
+                    });
+                    await Session().logout();
+                    if (!mounted) return;
+                    Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const HomePage()),
+                            (Route<dynamic> route) => false);
+                    showToast(context: context, msg: "Logout Berhasil");
+                  } else {
+                    setState(() {
+                      isLoadingLogout = false;
+                    });
+                    showToast(context: context, msg: "Terjadi Kesalahan");
+                  }
+                });
+              },
+              style: OutlinedButton.styleFrom(
+                  backgroundColor: AppColor.colorPrimaryBlue,
+                  padding: const EdgeInsets.symmetric(horizontal: 22),
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(6)),
+                  )),
+              child: Text(
+                "Keluar",
+                style: fontTextStyle.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: AppColor.white),
+              ),
+            ),
+        ],
       ),
     );
   }

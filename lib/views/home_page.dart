@@ -3,12 +3,14 @@
 import 'dart:collection';
 
 import 'package:flutter_bengkelin_user/config/app_color.dart';
+import 'package:flutter_bengkelin_user/config/pref.dart';
 import 'package:flutter_bengkelin_user/model/bengkel_model.dart';
 import 'package:flutter_bengkelin_user/model/product_model.dart';
 import 'package:flutter_bengkelin_user/viewmodel/bengkel_viewmodel.dart';
 import 'package:flutter_bengkelin_user/viewmodel/product_viewmodel.dart';
 import 'package:flutter_bengkelin_user/views/bengkel_detail_page.dart';
 import 'package:flutter_bengkelin_user/views/cart_page.dart';
+import 'package:flutter_bengkelin_user/views/login_page.dart';
 import 'package:flutter_bengkelin_user/views/product_detail_page.dart';
 import 'package:flutter_bengkelin_user/views/profile_page.dart';
 import 'package:flutter_bengkelin_user/widget/custom_toast.dart';
@@ -122,8 +124,15 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             GestureDetector(
-              onTap: (){
-                Navigator.push(context, MaterialPageRoute(builder: (context) => ProfilePage(),),);
+              onTap: () async {
+                String? userToken = await Session().getUserToken();
+                if (userToken == null){
+                  if (!mounted) return;
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => LoginPage(),));
+                } else {
+                  if (!mounted) return;
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => ProfilePage(),),);
+                }
               },
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -161,8 +170,15 @@ class _HomePageState extends State<HomePage> {
                     const Spacer(),
                     IconButton(
                       icon: const Icon(Icons.shopping_cart_outlined, color: Colors.black),
-                      onPressed: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => CartPage(),));
+                      onPressed: () async {
+                        String? userToken = await Session().getUserToken();
+                        if (userToken == null){
+                          if (!mounted) return;
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => LoginPage(),));
+                        } else {
+                          if (!mounted) return;
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => CartPage(),),);
+                        }
                       },
                     ),
                   ],

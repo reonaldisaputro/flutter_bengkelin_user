@@ -42,6 +42,8 @@ class AppColor {
 
 TextStyle poppinsTextStyle = GoogleFonts.poppins();
 
+TextStyle fontTextStyle = GoogleFonts.poppins();
+
 TextStyle poppinsRegular = TextStyle(
     fontFamily: "Poppins-Regular",
     fontWeight: FontWeight.w400

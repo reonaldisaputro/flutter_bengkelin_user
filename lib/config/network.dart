@@ -338,4 +338,40 @@ class Network {
       }
     }
   }
+
+  static Future<dynamic> postApiWithHeadersWithoutData(
+      String url, Map<String, dynamic> header) async {
+    try {
+      var dio = Dio(
+        BaseOptions(
+          baseUrl: baseUrl,
+          connectTimeout: const Duration(milliseconds: 500000),
+          receiveTimeout: const Duration(milliseconds: 300000),
+          responseType: ResponseType.json,
+          maxRedirects: 0,
+        ),
+      )..interceptors.addAll([
+        // AuthorizationInterceptor(),
+        LoggerInterceptor(),
+      ]);
+      Response restValue =
+      await dio.post(url, options: Options(headers: header));
+      debugPrint("$url response:${restValue.data ?? ""}");
+      dio.close();
+      header.clear();
+      return restValue.data;
+    } on DioException catch (e) {
+      if (e.response != null) {
+        print(e.response!.data);
+        print(e.response!.headers);
+        print(e.response!.requestOptions);
+
+        return jsonDecode(e.response.toString());
+      } else {
+        // Something happened in setting up or sending the request that triggered an Error
+        print(e.requestOptions);
+        print(e.message);
+      }
+    }
+  }
 }
