@@ -1,6 +1,7 @@
 // lib/pages/home_page.dart
 
 import 'dart:collection';
+import 'dart:convert';
 
 import 'package:flutter_bengkelin_user/config/app_color.dart';
 import 'package:flutter_bengkelin_user/config/pref.dart';
@@ -19,6 +20,7 @@ import 'package:flutter_bengkelin_user/views/chat_page.dart';
 import 'package:flutter_bengkelin_user/views/product_page.dart';
 import 'package:flutter_bengkelin_user/views/service_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:geolocator/geolocator.dart';
 import '../model/product_list_response.dart';
 import '../model/user_model.dart';
 import '../viewmodel/profile_viewmodel.dart';
@@ -52,13 +54,19 @@ class _HomePageState extends State<HomePage> {
 
   final TextEditingController _searchController = TextEditingController();
 
+  bool _isNearbyLoading = true;
+  List<BengkelModel> _bengkelNearby = [];
+  String? _nearbyErrorMessage;
+
   @override
   void initState() {
     super.initState();
     getUserProfile();
     getProducts();
+    getBengkelNearby();
     getBengkel();
     getUserProfile();
+
   }
 
   @override
@@ -254,84 +262,7 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 15),
             SizedBox(
               height: 180,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                itemCount: _bengkel.length,
-                itemBuilder: (context, index) {
-                  final bengkel = _bengkel[index];
-                  return GestureDetector(
-                    onTap: (){
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => BengkelDetailPage(bengkelId: bengkel.id),));
-                    },
-                    child: Container(
-                      width: 150,
-                      margin: const EdgeInsets.only(right: 15),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(15),
-                            ),
-                            child: Image.network(
-                              '${dotenv.env["IMAGE_BASE_URL"]}/${bengkel.image}',
-                              height: 100,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  color: Colors.grey[300],
-                                  height: 100,
-                                  child: const Center(child: Icon(Icons.broken_image)),
-                                );
-                              },
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  bengkel.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  bengkel.kelurahan?.name ?? 'Lokasi tidak tersedia',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
+              child: _buildNearbyContent(),
             ),
             const SizedBox(height: 25),
             Padding(
@@ -592,6 +523,92 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Future<Position?> _getCurrentPosition() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if(mounted) showToast(context: context, msg: "Layanan lokasi dimatikan.");
+      return null;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if(mounted) showToast(context: context, msg: "Izin lokasi ditolak.");
+        return null;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      if(mounted) showToast(context: context, msg: "Izin lokasi ditolak permanen, mohon aktifkan di pengaturan.");
+      return null;
+    }
+
+    return await Geolocator.getCurrentPosition();
+  }
+
+  Future<void> getBengkelNearby() async {
+    setState(() {
+      _isNearbyLoading = true;
+      _nearbyErrorMessage = null;
+    });
+
+    try {
+      final position = await _getCurrentPosition();
+
+      if (position != null) {
+        final value = await BengkelViewmodel().bengkelNearby(
+          lat: position.latitude,
+          long: position.longitude,
+          radius: 10,
+        );
+
+        if (value.code == 200) {
+          // ==========================================================
+          // ================== PERUBAHAN UTAMA DI SINI =================
+          // ==========================================================
+
+          // Langsung cast value.data sebagai List<dynamic>
+          final List<dynamic> listData = value.data as List<dynamic>;
+
+          // ==========================================================
+          // ====================== AKHIR PERUBAHAN =====================
+          // ==========================================================
+
+          setState(() {
+            _bengkelNearby =
+                listData.map((e) => BengkelModel.fromJson(e)).toList();
+            if (_bengkelNearby.isEmpty) {
+              _nearbyErrorMessage = "Tidak ada bengkel terdekat ditemukan.";
+            }
+          });
+        } else {
+          setState(() {
+            _nearbyErrorMessage = value.message;
+          });
+        }
+      } else {
+        setState(() {
+          _nearbyErrorMessage = "Gagal mendapatkan lokasi Anda.";
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _nearbyErrorMessage = "Gagal memproses data bengkel.";
+      });
+      debugPrint("Error fetching nearby workshops: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isNearbyLoading = false;
+        });
+      }
+    }
+  }
+
   UserModel? _users;
   getUserProfile() async {
     setState(() {
@@ -635,6 +652,100 @@ class _HomePageState extends State<HomePage> {
         debugPrint('Error loading user profile: $error');
       });
     }
+  }
+
+  Widget _buildNearbyContent() {
+    // KASUS 1: SEDANG LOADING
+    if (_isNearbyLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // KASUS 2: ADA ERROR ATAU DATA KOSONG
+    if (_nearbyErrorMessage != null || _bengkelNearby.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Text(
+            _nearbyErrorMessage ?? "Tidak ada bengkel terdekat ditemukan.",
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey[600]),
+          ),
+        ),
+      );
+    }
+
+    // KASUS 3: DATA BERHASIL DIDAPATKAN
+    return ListView.builder(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      itemCount: _bengkelNearby.length,
+      itemBuilder: (context, index) {
+        final bengkel = _bengkelNearby[index];
+        // UI Card Anda sudah benar, tidak perlu diubah.
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => BengkelDetailPage(bengkelId: bengkel.id)));
+          },
+          child: Container(
+            width: 150,
+            margin: const EdgeInsets.only(right: 15),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(15),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                  child: Image.network(
+                    '${dotenv.env["IMAGE_BASE_URL"]}/${bengkel.image}',
+                    height: 100,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[300],
+                        height: 100,
+                        child: const Center(child: Icon(Icons.broken_image)),
+                      );
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        bengkel.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        bengkel.kelurahan?.name ?? 'Lokasi tidak tersedia',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
 

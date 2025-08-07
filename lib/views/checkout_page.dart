@@ -35,12 +35,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
           _checkoutData = value.data;
         });
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Gagal memuat data checkout.")),
         );
       }
     } catch (e) {
       debugPrint("Error fetching checkout data: $e");
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Terjadi kesalahan.")),
       );
@@ -52,11 +54,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   Future<void> handleCheckout() async {
-    // Pastikan data sudah ada
     if (_checkoutData == null) return;
 
     setState(() {
-      _isProcessingCheckout = true; // Mulai loading
+      _isProcessingCheckout = true;
     });
 
     try {
@@ -68,11 +69,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
         grandTotal: (costSummary['grand_total'] as num).toDouble(),
       );
 
-      // Berdasarkan screenshot response Anda
       if (response.code == 200) {
         final paymentUrl = response.data['payment_url'];
         if (paymentUrl != null && mounted) {
-          // Buka halaman WebView dengan URL dari Midtrans
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -81,18 +80,20 @@ class _CheckoutPageState extends State<CheckoutPage> {
           );
         }
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(response.message ?? "Gagal memproses checkout.")),
         );
       }
     } catch (e) {
       debugPrint("Error on checkout: $e");
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Terjadi kesalahan saat checkout.")),
       );
     } finally {
       setState(() {
-        _isProcessingCheckout = false; // Hentikan loading
+        _isProcessingCheckout = false;
       });
     }
   }
@@ -182,7 +183,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               child: ElevatedButton(
                 onPressed: _isProcessingCheckout ? null : handleCheckout,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4A6B6B), // Warna hijau gelap
+                  backgroundColor: const Color(0xFF4A6B6B),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),

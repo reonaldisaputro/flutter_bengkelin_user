@@ -17,4 +17,10 @@ class BengkelViewmodel {
     Resp data = Resp.fromJson(resp);
     return data;
   }
+  
+  Future<Resp> bengkelNearby({lat,long,radius}) async {
+    var resp = await Network.getApi("${Endpoint.bengkelNearbyUrl}?latitude=$lat&longitude=$long&radius=$radius");
+    Resp data = Resp.fromJson(resp);
+    return data;
+  }
 }

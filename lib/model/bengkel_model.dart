@@ -11,6 +11,9 @@ class BengkelModel {
   final String image;
   final String description;
   final String alamat;
+  final double latitude;
+  final double longitude;
+  final double distance;
   final String createdAt;
   final String updatedAt;
   final int kecamatanId;
@@ -29,6 +32,9 @@ class BengkelModel {
     required this.image,
     required this.description,
     required this.alamat,
+    required this.latitude,
+    required this.longitude,
+    required this.distance,
     required this.createdAt,
     required this.updatedAt,
     required this.kecamatanId,
@@ -41,34 +47,50 @@ class BengkelModel {
   });
 
   factory BengkelModel.fromJson(Map<String, dynamic> json) {
+    // Fungsi kecil untuk parsing yang aman
+    int safeIntParse(dynamic value) {
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    double safeDoubleParse(dynamic value) {
+      return double.tryParse(value?.toString() ?? '') ?? 0.0;
+    }
+
     return BengkelModel(
-      id: json['id'],
-      pemilikId: json['pemilik_id'],
-      specialistId: json['specialist_id'],
-      name: json['name'],
-      image: json['image'],
-      description: json['description'],
-      alamat: json['alamat'],
-      createdAt: json['created_at'],
-      updatedAt: json['updated_at'],
-      kecamatanId: json['kecamatan_id'],
-      kelurahanId: json['kelurahan_id'],
+      // Gunakan fungsi parsing yang aman untuk semua angka
+      id: safeIntParse(json['id']),
+      pemilikId: safeIntParse(json['pemilik_id']),
+      specialistId: json['specialist_id'] != null ? safeIntParse(json['specialist_id']) : null,
+      name: json['name'] ?? '',
+      image: json['image'] ?? '',
+      description: json['description'] ?? '',
+      alamat: json['alamat'] ?? '',
+
+      latitude: safeDoubleParse(json['latitude']),
+      longitude: safeDoubleParse(json['longitude']),
+      distance: safeDoubleParse(json['distance']),
+
+      createdAt: json['created_at'] ?? '',
+      updatedAt: json['updated_at'] ?? '',
+      kecamatanId: safeIntParse(json['kecamatan_id']),
+      kelurahanId: safeIntParse(json['kelurahan_id']),
+
       specialists: (json['specialists'] as List<dynamic>?)
-          ?.map((e) => SpecialistModel.fromJson(e))
+          ?.map((e) => SpecialistModel.fromJson(e as Map<String, dynamic>))
           .toList() ??
           [],
       kecamatan: json['kecamatan'] != null
-          ? KecamatanModel.fromJson(json['kecamatan'])
+          ? KecamatanModel.fromJson(json['kecamatan'] as Map<String, dynamic>)
           : null,
       kelurahan: json['kelurahan'] != null
-          ? KelurahanModel.fromJson(json['kelurahan'])
+          ? KelurahanModel.fromJson(json['kelurahan'] as Map<String, dynamic>)
           : null,
       products: (json['products'] as List<dynamic>?)
-          ?.map((e) => Product.fromJson(e))
+          ?.map((e) => Product.fromJson(e as Map<String, dynamic>))
           .toList() ??
           [],
       jadwals: (json['jadwals'] as List<dynamic>?)
-          ?.map((e) => JadwalModel.fromJson(e))
+          ?.map((e) => JadwalModel.fromJson(e as Map<String, dynamic>))
           .toList() ??
           [],
     );
@@ -83,6 +105,9 @@ class BengkelModel {
       'image': image,
       'description': description,
       'alamat': alamat,
+      'latitude': latitude,
+      'longitude': longitude,
+      'distance': distance,
       'created_at': createdAt,
       'updated_at': updatedAt,
       'kecamatan_id': kecamatanId,
