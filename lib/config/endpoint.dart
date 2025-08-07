@@ -27,4 +27,5 @@ class Endpoint {
 
   //checkout
   static const String checkoutSummary = '/api/checkout-summary';
+  static const String checkoutUrl = '/api/checkout';
 }

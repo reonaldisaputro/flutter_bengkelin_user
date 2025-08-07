@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bengkelin_user/viewmodel/checkout_viewmodel.dart';
+import 'package:flutter_bengkelin_user/views/payment_webview_page.dart';
 import 'package:intl/intl.dart';
 
 class CheckoutPage extends StatefulWidget {
@@ -10,49 +11,88 @@ class CheckoutPage extends StatefulWidget {
 }
 
 class _CheckoutPageState extends State<CheckoutPage> {
-  // 2. Buat state untuk loading dan data
   bool _isLoading = true;
+  bool _isProcessingCheckout = false;
   Map<String, dynamic>? _checkoutData;
 
   @override
   void initState() {
     super.initState();
-    // Panggil fungsi fetch saat halaman pertama kali dibuka
     getCheckoutSummary();
   }
-
-  // Helper untuk format mata uang (tetap sama)
+  
   String _formatCurrency(double amount) {
     final format =
     NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
     return format.format(amount);
   }
-
-  // 3. Ubah fungsi getCheckoutSummary menjadi async-await
+  
   Future<void> getCheckoutSummary() async {
     try {
       final value = await CheckoutViewmodel().getCheckoutSummary();
       if (value.success) {
-        // Simpan data dari API ke dalam state
         setState(() {
           _checkoutData = value.data;
         });
       } else {
-        // Handle jika API mengembalikan success = false
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Gagal memuat data checkout.")),
         );
       }
     } catch (e) {
-      // Handle jika terjadi error koneksi, dll.
       debugPrint("Error fetching checkout data: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Terjadi kesalahan.")),
       );
     } finally {
-      // Apapun hasilnya, hentikan loading
       setState(() {
         _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> handleCheckout() async {
+    // Pastikan data sudah ada
+    if (_checkoutData == null) return;
+
+    setState(() {
+      _isProcessingCheckout = true; // Mulai loading
+    });
+
+    try {
+      final costSummary = _checkoutData!['cost_summary'];
+
+      final response = await CheckoutViewmodel().checkout(
+        ongkir: (costSummary['shipping_cost'] as num).toDouble(),
+        administrasi: (costSummary['admin_fee'] as num).toDouble(),
+        grandTotal: (costSummary['grand_total'] as num).toDouble(),
+      );
+
+      // Berdasarkan screenshot response Anda
+      if (response.code == 200) {
+        final paymentUrl = response.data['payment_url'];
+        if (paymentUrl != null && mounted) {
+          // Buka halaman WebView dengan URL dari Midtrans
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PaymentWebViewPage(url: paymentUrl),
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response.message ?? "Gagal memproses checkout.")),
+        );
+      }
+    } catch (e) {
+      debugPrint("Error on checkout: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Terjadi kesalahan saat checkout.")),
+      );
+    } finally {
+      setState(() {
+        _isProcessingCheckout = false; // Hentikan loading
       });
     }
   }
@@ -140,9 +180,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  // TODO: Logika pembayaran
-                },
+                onPressed: _isProcessingCheckout ? null : handleCheckout,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4A6B6B), // Warna hijau gelap
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -152,7 +190,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   elevation: 5,
                   shadowColor: const Color(0xFF4A6B6B).withOpacity(0.4),
                 ),
-                child: const Text(
+                child: _isProcessingCheckout
+                    ? const SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 3,
+                  ),
+                ) : const Text(
                   'Bayar Sekarang',
                   style: TextStyle(
                     fontSize: 16,
