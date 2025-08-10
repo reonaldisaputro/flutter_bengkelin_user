@@ -101,7 +101,7 @@ class _ProductPageState extends State<ProductPage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => ProductDetailPage(product: product),
+                            builder: (context) => ProductDetailPage(productId: product.id),
                           ),
                         );
                       },

@@ -10,6 +10,7 @@ import 'package:flutter_bengkelin_user/model/product_model.dart';
 import 'package:flutter_bengkelin_user/viewmodel/bengkel_viewmodel.dart';
 import 'package:flutter_bengkelin_user/viewmodel/product_viewmodel.dart';
 import 'package:flutter_bengkelin_user/views/bengkel_detail_page.dart';
+import 'package:flutter_bengkelin_user/views/booking_form_page.dart';
 import 'package:flutter_bengkelin_user/views/cart_page.dart';
 import 'package:flutter_bengkelin_user/views/login_page.dart';
 import 'package:flutter_bengkelin_user/views/product_detail_page.dart';
@@ -287,7 +288,7 @@ class _HomePageState extends State<HomePage> {
                   final product = _products[index];
                   return GestureDetector(
                     onTap: (){
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => ProductDetailPage(product: product, ),));
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => ProductDetailPage(productId: product.id, ),));
                     },
                     child: Container(
                       width: 150,
@@ -466,7 +467,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         ElevatedButton(
                           onPressed: () {
-                            // Aksi booking
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => BengkelDetailPage(bengkelId: bengkel.id),));
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF4A6B6B),
@@ -474,7 +475,7 @@ class _HomePageState extends State<HomePage> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                           child: const Text(
-                            'BOOK',
+                            'Detail',
                             style: TextStyle(color: Colors.white, fontSize: 14),
                           ),
                         ),

@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bengkelin_user/views/splash_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:intl/date_symbol_data_file.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

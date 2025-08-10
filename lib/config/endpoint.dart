@@ -29,4 +29,10 @@ class Endpoint {
   //checkout
   static const String checkoutSummary = '/api/checkout-summary';
   static const String checkoutUrl = '/api/checkout';
+
+  // transaction
+  static const String transactionUrl = '/api/profile/transactions';
+
+  // rating
+  static const String ratingUrl = '/api/ratings';
 }

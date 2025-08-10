@@ -5,6 +5,8 @@ import 'package:flutter_bengkelin_user/views/booking_form_page.dart';
 import 'package:flutter_bengkelin_user/views/product_detail_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import '../config/app_color.dart';
+
 class BengkelDetailPage extends StatefulWidget {
   const BengkelDetailPage({super.key, required this.bengkelId});
   final dynamic bengkelId;
@@ -56,6 +58,14 @@ class _BengkelDetailPageState extends State<BengkelDetailPage> {
                 width: double.infinity,
                 height: 180,
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: double.infinity,
+                    height: 180,
+                    color: AppColor.colorGrey,
+                    child: Icon(Icons.image_not_supported, color: Colors.white),
+                  );
+                },
               ),
             ),
             const SizedBox(height: 16),
@@ -91,7 +101,9 @@ class _BengkelDetailPageState extends State<BengkelDetailPage> {
 
             Text("Jadwal Buka", style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            Card(
+            bengkel.jadwals.isEmpty
+                ? const Text("Belum ada jadwal tersedia.")
+                : Card(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               elevation: 2,
               child: Padding(
@@ -119,6 +131,9 @@ class _BengkelDetailPageState extends State<BengkelDetailPage> {
                 elevation: 2,
                 margin: const EdgeInsets.symmetric(vertical: 8),
                 child: ListTile(
+                  onTap: (){
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => ProductDetailPage(productId: product.id),));
+                  },
                   leading: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Image.network(
