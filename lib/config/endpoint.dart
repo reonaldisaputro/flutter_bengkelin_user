@@ -35,4 +35,5 @@ class Endpoint {
 
   // rating
   static const String ratingUrl = '/api/ratings';
+  static const String chatUrl = '/api/chat/send';
 }

@@ -12,6 +12,7 @@ import 'package:flutter_bengkelin_user/viewmodel/product_viewmodel.dart';
 import 'package:flutter_bengkelin_user/views/bengkel_detail_page.dart';
 import 'package:flutter_bengkelin_user/views/booking_form_page.dart';
 import 'package:flutter_bengkelin_user/views/cart_page.dart';
+import 'package:flutter_bengkelin_user/views/chat_assistant_page.dart';
 import 'package:flutter_bengkelin_user/views/login_page.dart';
 import 'package:flutter_bengkelin_user/views/product_detail_page.dart';
 import 'package:flutter_bengkelin_user/views/profile_page.dart';
@@ -84,7 +85,8 @@ class _HomePageState extends State<HomePage> {
         index: _selectedIndex,
         children: [
           _buildHomePageContent(),
-          const ChatsPage(initialMessage: ''),
+          // const ChatsPage(initialMessage: ''),
+          ChatAssistantPage(),
           const ProductPage(),
           const ServicePage(),
         ],
