@@ -43,17 +43,6 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, String>> filteredNearbyWorkshops = [];
   List<Map<String, String>> filteredRecommendedWorkshops = [];
 
-  final List<String> _locationOptions = [
-    'Sumatra selatan',
-    'Sumatra utara',
-    'Sumatra barat',
-    'Jakarta',
-    'Bandung',
-    'Surabaya',
-  ];
-
-  String _currentSelectedLocation = 'Sumatra selatan';
-
   final TextEditingController _searchController = TextEditingController();
 
   bool _isNearbyLoading = true;
@@ -88,7 +77,8 @@ class _HomePageState extends State<HomePage> {
           // const ChatsPage(initialMessage: ''),
           ChatAssistantPage(),
           const ProductPage(),
-          const ServicePage(),
+          // const ServicePage(),
+          ProfilePage(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -109,15 +99,24 @@ class _HomePageState extends State<HomePage> {
             label: 'Product',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.build_outlined),
+            icon: Icon(Icons.person),
             activeIcon: Icon(Icons.build),
-            label: 'Service',
+            label: 'Profile',
           ),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: const Color(0xFF4A6B6B),
         unselectedItemColor: Colors.grey,
-        onTap: (index) {
+        onTap: (index) async { // Tambahkan 'async' di sini
+          if (index == 3) { // Index 3 adalah Profile
+            String? userToken = await Session().getUserToken();
+            if (userToken == null) {
+              // Belum login, navigasi ke LoginPage
+              if (!mounted) return;
+              Navigator.push(context, MaterialPageRoute(builder: (context) => LoginPage()));
+              return; // Penting: Jangan ubah _selectedIndex
+            }
+          }
           setState(() {
             _selectedIndex = index;
           });
@@ -136,49 +135,50 @@ class _HomePageState extends State<HomePage> {
           children: [
             GestureDetector(
               onTap: () async {
-                String? userToken = await Session().getUserToken();
-                if (userToken == null){
-                  if (!mounted) return;
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => LoginPage(),));
-                } else {
-                  if (!mounted) return;
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => ProfilePage(),),);
-                }
+                // String? userToken = await Session().getUserToken();
+                // if (userToken == null){
+                //   if (!mounted) return;
+                //   Navigator.push(context, MaterialPageRoute(builder: (context) => LoginPage(),));
+                // } else {
+                //   if (!mounted) return;
+                //   Navigator.push(context, MaterialPageRoute(builder: (context) => ProfilePage(),),);
+                // }
               },
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    CircleAvatar(
-                      radius: 25,
-                      backgroundColor: Colors.white,
-                      backgroundImage:
-                          _userPhotoUrl != null && _userPhotoUrl!.isNotEmpty
-                          ? NetworkImage(_userPhotoUrl!)
-                          : null,
-                      child: _userPhotoUrl == null || _userPhotoUrl!.isEmpty
-                          ? Image.asset('assets/profile1.png')
-                          : null,
-                    ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Selamat Datang',
-                          style: TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                        Text(
-                          _users?.name ?? "",
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A1A2E),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
+                    // CircleAvatar(
+                    //   radius: 25,
+                    //   backgroundColor: Colors.white,
+                    //   backgroundImage:
+                    //       _userPhotoUrl != null && _userPhotoUrl!.isNotEmpty
+                    //       ? NetworkImage(_userPhotoUrl!)
+                    //       : null,
+                    //   child: _userPhotoUrl == null || _userPhotoUrl!.isEmpty
+                    //       ? Image.asset('assets/profile1.png')
+                    //       : null,
+                    // ),
+                    // const SizedBox(width: 10),
+                    // Column(
+                    //   crossAxisAlignment: CrossAxisAlignment.start,
+                    //   children: [
+                    //     const Text(
+                    //       'Selamat Datang',
+                    //       style: TextStyle(fontSize: 14, color: Colors.grey),
+                    //     ),
+                    //     Text(
+                    //       _users?.name ?? "",
+                    //       style: const TextStyle(
+                    //         fontSize: 18,
+                    //         fontWeight: FontWeight.bold,
+                    //         color: Color(0xFF1A1A2E),
+                    //       ),
+                    //     ),
+                    //   ],
+                    // ),
+                    // const Spacer(),
                     IconButton(
                       icon: const Icon(Icons.shopping_cart_outlined, color: Colors.black),
                       onPressed: () async {
@@ -194,41 +194,6 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ],
                 ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _currentSelectedLocation,
-                    style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-                  ),
-                  const Spacer(),
-                  DropdownButton<String>(
-                    value: _currentSelectedLocation,
-                    icon: const Icon(
-                      Icons.keyboard_arrow_down,
-                      color: Color(0xFF4A6B6B),
-                    ),
-                    underline: const SizedBox(),
-                    onChanged: (String? newValue) {
-                      setState(() {});
-                    },
-                    items: _locationOptions.map<DropdownMenuItem<String>>((
-                      String value,
-                    ) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(
-                          value,
-                          style: const TextStyle(color: Color(0xFF4A6B6B)),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
               ),
             ),
             const SizedBox(height: 20),
@@ -262,128 +227,128 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-            const SizedBox(height: 15),
+            SizedBox(height: 15),
             SizedBox(
               height: 180,
               child: _buildNearbyContent(),
             ),
             const SizedBox(height: 25),
-            Padding(
-              padding: const EdgeInsets.only(left: 16.0),
-              child: Text(
-                'Rekomendasi Product',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                ),
-              ),
-            ),
-            const SizedBox(height: 15),
-            SizedBox(
-              height: 200,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                itemCount: _products.length,
-                itemBuilder: (context, index) {
-                  final product = _products[index];
-                  return GestureDetector(
-                    onTap: (){
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => ProductDetailPage(productId: product.id, ),));
-                    },
-                    child: Container(
-                      width: 150,
-                      margin: const EdgeInsets.only(right: 15),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Stack(
-                            children: [
-                              ClipRRect(
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(15),
-                                ),
-                                child: Image.network(
-                                  '${dotenv.env["IMAGE_BASE_URL"]}/${product.image}', // placeholder image
-                                  height: 119,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Container(
-                                      color: AppColor.colorGrey,
-                                      height: 119,
-                                      child: Center(
-                                        child: Text("Image not found", style: TextStyle(color: AppColor.white),),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                              Positioned(
-                                top: 8,
-                                right: 8,
-                                child: Icon(
-                                  Icons.favorite_border,
-                                  color: Colors.grey[400],
-                                ),
-                              ),
-                            ],
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  product.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  product.bengkel.name,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Rp ${product.price.toString()}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: Color(0xFF4A6B6B),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
+            // Padding(
+            //   padding: const EdgeInsets.only(left: 16.0),
+            //   child: Text(
+            //     'Rekomendasi Product',
+            //     style: TextStyle(
+            //       fontSize: 18,
+            //       fontWeight: FontWeight.bold,
+            //       color: Colors.grey[800],
+            //     ),
+            //   ),
+            // ),
+            // const SizedBox(height: 15),
+            // SizedBox(
+            //   height: 200,
+            //   child: ListView.builder(
+            //     scrollDirection: Axis.horizontal,
+            //     padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            //     itemCount: _products.length,
+            //     itemBuilder: (context, index) {
+            //       final product = _products[index];
+            //       return GestureDetector(
+            //         onTap: (){
+            //           Navigator.push(context, MaterialPageRoute(builder: (context) => ProductDetailPage(productId: product.id, ),));
+            //         },
+            //         child: Container(
+            //           width: 150,
+            //           margin: const EdgeInsets.only(right: 15),
+            //           decoration: BoxDecoration(
+            //             color: Colors.white,
+            //             borderRadius: BorderRadius.circular(15),
+            //             boxShadow: [
+            //               BoxShadow(
+            //                 color: Colors.black.withOpacity(0.05),
+            //                 blurRadius: 10,
+            //                 offset: const Offset(0, 5),
+            //               ),
+            //             ],
+            //           ),
+            //           child: Column(
+            //             crossAxisAlignment: CrossAxisAlignment.start,
+            //             children: [
+            //               Stack(
+            //                 children: [
+            //                   ClipRRect(
+            //                     borderRadius: const BorderRadius.vertical(
+            //                       top: Radius.circular(15),
+            //                     ),
+            //                     child: Image.network(
+            //                       '${dotenv.env["IMAGE_BASE_URL"]}/${product.image}', // placeholder image
+            //                       height: 119,
+            //                       width: double.infinity,
+            //                       fit: BoxFit.cover,
+            //                       errorBuilder: (context, error, stackTrace) {
+            //                         return Container(
+            //                           color: AppColor.colorGrey,
+            //                           height: 119,
+            //                           child: Center(
+            //                             child: Text("Image not found", style: TextStyle(color: AppColor.white),),
+            //                           ),
+            //                         );
+            //                       },
+            //                     ),
+            //                   ),
+            //                   // Positioned(
+            //                   //   top: 8,
+            //                   //   right: 8,
+            //                   //   child: Icon(
+            //                   //     Icons.favorite_border,
+            //                   //     color: Colors.grey[400],
+            //                   //   ),
+            //                   // ),
+            //                 ],
+            //               ),
+            //               Padding(
+            //                 padding: const EdgeInsets.all(8.0),
+            //                 child: Column(
+            //                   crossAxisAlignment: CrossAxisAlignment.start,
+            //                   children: [
+            //                     Text(
+            //                       product.name,
+            //                       style: const TextStyle(
+            //                         fontWeight: FontWeight.bold,
+            //                         fontSize: 14,
+            //                       ),
+            //                       maxLines: 1,
+            //                       overflow: TextOverflow.ellipsis,
+            //                     ),
+            //                     const SizedBox(height: 4),
+            //                     Text(
+            //                       product.bengkel.name,
+            //                       style: TextStyle(
+            //                         fontSize: 12,
+            //                         color: Colors.grey[600],
+            //                       ),
+            //                       maxLines: 1,
+            //                       overflow: TextOverflow.ellipsis,
+            //                     ),
+            //                     const SizedBox(height: 4),
+            //                     Text(
+            //                       'Rp ${product.price.toString()}',
+            //                       style: const TextStyle(
+            //                         fontWeight: FontWeight.bold,
+            //                         fontSize: 14,
+            //                         color: Color(0xFF4A6B6B),
+            //                       ),
+            //                     ),
+            //                   ],
+            //                 ),
+            //               ),
+            //             ],
+            //           ),
+            //         ),
+            //       );
+            //     },
+            //   ),
+            // ),
             const SizedBox(height: 25),
             Padding(
               padding: const EdgeInsets.only(left: 16.0),
