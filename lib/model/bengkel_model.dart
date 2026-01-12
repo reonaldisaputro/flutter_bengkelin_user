@@ -60,7 +60,9 @@ class BengkelModel {
       // Gunakan fungsi parsing yang aman untuk semua angka
       id: safeIntParse(json['id']),
       pemilikId: safeIntParse(json['pemilik_id']),
-      specialistId: json['specialist_id'] != null ? safeIntParse(json['specialist_id']) : null,
+      specialistId: json['specialist_id'] != null
+          ? safeIntParse(json['specialist_id'])
+          : null,
       name: json['name'] ?? '',
       image: json['image'] ?? '',
       description: json['description'] ?? '',
@@ -75,9 +77,10 @@ class BengkelModel {
       kecamatanId: safeIntParse(json['kecamatan_id']),
       kelurahanId: safeIntParse(json['kelurahan_id']),
 
-      specialists: (json['specialists'] as List<dynamic>?)
-          ?.map((e) => SpecialistModel.fromJson(e as Map<String, dynamic>))
-          .toList() ??
+      specialists:
+          (json['specialists'] as List<dynamic>?)
+              ?.map((e) => SpecialistModel.fromJson(e as Map<String, dynamic>))
+              .toList() ??
           [],
       kecamatan: json['kecamatan'] != null
           ? KecamatanModel.fromJson(json['kecamatan'] as Map<String, dynamic>)
@@ -85,13 +88,15 @@ class BengkelModel {
       kelurahan: json['kelurahan'] != null
           ? KelurahanModel.fromJson(json['kelurahan'] as Map<String, dynamic>)
           : null,
-      products: (json['products'] as List<dynamic>?)
-          ?.map((e) => Product.fromJson(e as Map<String, dynamic>))
-          .toList() ??
+      products:
+          (json['products'] as List<dynamic>?)
+              ?.map((e) => Product.fromJson(e as Map<String, dynamic>))
+              .toList() ??
           [],
-      jadwals: (json['jadwals'] as List<dynamic>?)
-          ?.map((e) => JadwalModel.fromJson(e as Map<String, dynamic>))
-          .toList() ??
+      jadwals:
+          (json['jadwals'] as List<dynamic>?)
+              ?.map((e) => JadwalModel.fromJson(e as Map<String, dynamic>))
+              .toList() ??
           [],
     );
   }
@@ -177,7 +182,6 @@ class Product {
   }
 }
 
-
 class JadwalModel {
   final int id;
   final String seninBuka;
@@ -221,24 +225,24 @@ class JadwalModel {
 
   factory JadwalModel.fromJson(Map<String, dynamic> json) {
     return JadwalModel(
-      id: json['id'],
-      seninBuka: json['senin_buka'],
-      seninTutup: json['senin_tutup'],
-      selasaBuka: json['selasa_buka'],
-      selasaTutup: json['selasa_tutup'],
-      rabuBuka: json['rabu_buka'],
-      rabuTutup: json['rabu_tutup'],
-      kamisBuka: json['kamis_buka'],
-      kamisTutup: json['kamis_tutup'],
-      jumatBuka: json['jumat_buka'],
-      jumatTutup: json['jumat_tutup'],
-      sabtuBuka: json['sabtu_buka'],
-      sabtuTutup: json['sabtu_tutup'],
-      mingguBuka: json['minggu_buka'],
-      mingguTutup: json['minggu_tutup'],
-      bengkelId: json['bengkel_id'],
-      createdAt: json['created_at'],
-      updatedAt: json['updated_at'],
+      id: json['id'] ?? 0,
+      seninBuka: json['senin_buka'] ?? '',
+      seninTutup: json['senin_tutup'] ?? '',
+      selasaBuka: json['selasa_buka'] ?? '',
+      selasaTutup: json['selasa_tutup'] ?? '',
+      rabuBuka: json['rabu_buka'] ?? '',
+      rabuTutup: json['rabu_tutup'] ?? '',
+      kamisBuka: json['kamis_buka'] ?? '',
+      kamisTutup: json['kamis_tutup'] ?? '',
+      jumatBuka: json['jumat_buka'] ?? '',
+      jumatTutup: json['jumat_tutup'] ?? '',
+      sabtuBuka: json['sabtu_buka'] ?? '',
+      sabtuTutup: json['sabtu_tutup'] ?? '',
+      mingguBuka: json['minggu_buka'] ?? '',
+      mingguTutup: json['minggu_tutup'] ?? '',
+      bengkelId: json['bengkel_id'] ?? 0,
+      createdAt: json['created_at'] ?? '',
+      updatedAt: json['updated_at'] ?? '',
     );
   }
 
@@ -265,4 +269,3 @@ class JadwalModel {
     };
   }
 }
-

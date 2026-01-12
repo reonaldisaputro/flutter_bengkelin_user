@@ -5,9 +5,9 @@ import '../config/network.dart';
 
 class ProductViewmodel {
 
-  Future<Resp> products() async {
+  Future<Resp> products({int page = 1}) async {
     var resp = await Network.getApi(
-        Endpoint.productUrl);
+        "${Endpoint.productUrl}?page=$page");
     Resp data = Resp.fromJson(resp);
     return data;
   }

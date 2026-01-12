@@ -16,27 +16,47 @@ class ProductPage extends StatefulWidget {
 
 class _ProductPageState extends State<ProductPage> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   List<Map<String, dynamic>> filteredProducts = [];
+  List<ProductModel> _products = [];
+
+  int _currentPage = 1;
+  int _lastPage = 1;
+  bool _isLoadingMore = false;
+  bool _isInitialLoading = true;
 
   @override
   void initState() {
     super.initState();
     getProducts();
     _searchController.addListener(_onSearchChanged);
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     super.dispose();
   }
 
   void _onSearchChanged() {
-    final query = _searchController.text.toLowerCase();
+    // TODO: Implement search functionality
+    // final query = _searchController.text.toLowerCase();
     setState(() {
     });
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _currentPage < _lastPage) {
+      _loadMoreProducts();
+    }
   }
 
   @override
@@ -84,33 +104,47 @@ class _ProductPageState extends State<ProductPage> {
 
           // Product Grid
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16.0,
-                  mainAxisSpacing: 16.0,
-                  childAspectRatio: 0.7,
-                ),
-                  itemCount: _products.length,
-                  itemBuilder: (context, index) {
-                    final product = _products[index];
-                    return InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ProductDetailPage(productId: product.id),
-                          ),
+            child: _isInitialLoading
+                ? const Center(child: CircularProgressIndicator())
+                : Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: GridView.builder(
+                      controller: _scrollController,
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 16.0,
+                        mainAxisSpacing: 16.0,
+                        childAspectRatio: 0.7,
+                      ),
+                      itemCount:
+                          _products.length + (_isLoadingMore ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == _products.length) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        }
+
+                        final product = _products[index];
+                        return InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    ProductDetailPage(productId: product.id),
+                              ),
+                            );
+                          },
+                          child: _buildProductCard(product),
                         );
                       },
-                      child: _buildProductCard(product),
-                    );
-                  }
-
-              ),
-            ),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -195,17 +229,77 @@ class _ProductPageState extends State<ProductPage> {
   }
 
 
-  List<ProductModel> _products = [];
-
   getProducts() async {
-    await ProductViewmodel().products().then((value) {
+    setState(() {
+      _isInitialLoading = true;
+    });
+
+    try {
+      await ProductViewmodel().products(page: 1).then((value) {
+        print('Full Response Code: ${value.code}'); // Debug
+        print('Full Response Data Type: ${value.data.runtimeType}'); // Debug
+
+        if (value.code == 200) {
+          // value.data sudah berisi object pagination dari Laravel
+          final responseData = value.data;
+          print('Response Data Keys: ${responseData.keys}'); // Debug
+          print('Current Page: ${responseData['current_page']}'); // Debug
+          print('Last Page: ${responseData['last_page']}'); // Debug
+          print('Products Count: ${(responseData['data'] as List).length}'); // Debug
+
+          final productList = ProductListResponse.fromJson(responseData);
+          print('Products loaded: ${productList.products.length}'); // Debug
+
+          setState(() {
+            _products = productList.products;
+            _currentPage = productList.currentPage;
+            _lastPage = productList.lastPage;
+            _isInitialLoading = false;
+          });
+          print('State updated - isLoading: $_isInitialLoading'); // Debug
+        } else {
+          print('Response code not 200: ${value.code}'); // Debug
+          setState(() {
+            _isInitialLoading = false;
+          });
+          if (!mounted) return;
+          showToast(context: context, msg: value.message);
+        }
+      });
+    } catch (e, stackTrace) {
+      print('Error loading products: $e'); // Debug
+      print('Stack trace: $stackTrace'); // Debug
+      setState(() {
+        _isInitialLoading = false;
+      });
+      if (!mounted) return;
+      showToast(context: context, msg: 'Error: $e');
+    }
+  }
+
+  _loadMoreProducts() async {
+    if (_isLoadingMore || _currentPage >= _lastPage) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    final nextPage = _currentPage + 1;
+
+    await ProductViewmodel().products(page: nextPage).then((value) {
       if (value.code == 200) {
         final responseData = value.data;
         final productList = ProductListResponse.fromJson(responseData);
         setState(() {
-          _products = productList.products;
+          _products.addAll(productList.products);
+          _currentPage = productList.currentPage;
+          _lastPage = productList.lastPage;
+          _isLoadingMore = false;
         });
       } else {
+        setState(() {
+          _isLoadingMore = false;
+        });
         if (!mounted) return;
         showToast(context: context, msg: value.message);
       }
