@@ -4,6 +4,7 @@ import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:flutter_bengkelin_user/config/pref.dart';
 import 'package:flutter_bengkelin_user/viewmodel/booking_viewmodel.dart';
+import 'package:flutter_bengkelin_user/views/booking_detail_page.dart';
 import 'package:intl/intl.dart';
 
 import '../model/user_booking.dart';

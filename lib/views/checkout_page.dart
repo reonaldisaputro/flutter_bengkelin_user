@@ -20,13 +20,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
     super.initState();
     getCheckoutSummary();
   }
-  
+
   String _formatCurrency(double amount) {
-    final format =
-    NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
+    final format = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp',
+      decimalDigits: 0,
+    );
     return format.format(amount);
   }
-  
+
   Future<void> getCheckoutSummary() async {
     try {
       final value = await CheckoutViewmodel().getCheckoutSummary();
@@ -43,9 +46,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
     } catch (e) {
       debugPrint("Error fetching checkout data: $e");
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Terjadi kesalahan.")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Terjadi kesalahan.")));
     } finally {
       setState(() {
         _isLoading = false;
@@ -82,7 +85,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response.message ?? "Gagal memproses checkout.")),
+          SnackBar(
+            content: Text(response.message ?? "Gagal memproses checkout."),
+          ),
         );
       }
     } catch (e) {
@@ -116,7 +121,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     final costSummary = _checkoutData!['cost_summary'];
     final double productTotal = (costSummary['sub_total'] as num).toDouble();
-    final double shippingCost = (costSummary['shipping_cost'] as num).toDouble();
+    final double shippingCost = (costSummary['shipping_cost'] as num)
+        .toDouble();
     final double adminFee = (costSummary['admin_fee'] as num).toDouble();
     final double grandTotal = (costSummary['grand_total'] as num).toDouble();
 
@@ -132,9 +138,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(
-          color: Color(0xFF1D2A39),
-        ),
+        iconTheme: const IconThemeData(color: Color(0xFF1D2A39)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -150,7 +154,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     color: Colors.black.withOpacity(0.05),
                     blurRadius: 20,
                     offset: const Offset(0, 5),
-                  )
+                  ),
                 ],
               ),
               child: Column(
@@ -160,9 +164,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   const SizedBox(height: 24),
                   const Divider(),
                   const SizedBox(height: 16),
-                  _buildSummaryRow('Product Total', _formatCurrency(productTotal)),
+                  _buildSummaryRow(
+                    'Product Total',
+                    _formatCurrency(productTotal),
+                  ),
                   const SizedBox(height: 12),
-                  _buildSummaryRow('Ongkos Kirim', _formatCurrency(shippingCost)),
+                  _buildSummaryRow(
+                    'Ongkos Kirim',
+                    _formatCurrency(shippingCost),
+                  ),
                   const SizedBox(height: 12),
                   _buildSummaryRow('Biaya Admin', _formatCurrency(adminFee)),
                   const SizedBox(height: 16),
@@ -193,20 +203,21 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 ),
                 child: _isProcessingCheckout
                     ? const SizedBox(
-                  height: 24,
-                  width: 24,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 3,
-                  ),
-                ) : const Text(
-                  'Bayar Sekarang',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 3,
+                        ),
+                      )
+                    : const Text(
+                        'Bayar Sekarang',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -219,7 +230,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Product', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        const Text(
+          'Product',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
         const SizedBox(height: 8),
         const Divider(),
         const SizedBox(height: 16),
@@ -230,7 +244,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
           itemBuilder: (context, index) {
             final item = items[index];
             return _buildProductRow(
-              imageUrl: item['image_url'] ?? 'https://via.placeholder.com/150/e0e0e0?text=No+Image',
+              imageUrl:
+                  item['image_url'] ??
+                  'https://via.placeholder.com/150/e0e0e0?text=No+Image',
               productName: item['product_name'],
               quantity: item['quantity'],
               price: _formatCurrency((item['total_price'] as num).toDouble()),
@@ -242,7 +258,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  Widget _buildProductRow({required String imageUrl, required String productName, required int quantity, required String price}) {
+  Widget _buildProductRow({
+    required String imageUrl,
+    required String productName,
+    required int quantity,
+    required String price,
+  }) {
     return Row(
       children: [
         ClipRRect(
@@ -257,7 +278,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 width: 60,
                 height: 60,
                 color: Colors.grey[200],
-                child: Icon(Icons.image_not_supported_outlined, color: Colors.grey[400]),
+                child: Icon(
+                  Icons.image_not_supported_outlined,
+                  color: Colors.grey[400],
+                ),
               );
             },
           ),
@@ -280,10 +304,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               const SizedBox(height: 4),
               Text(
                 'x $quantity',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
               ),
             ],
           ),
@@ -301,7 +322,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  Widget _buildSummaryRow(String title, String value, {bool isGrandTotal = false}) {
+  Widget _buildSummaryRow(
+    String title,
+    String value, {
+    bool isGrandTotal = false,
+  }) {
     final style = TextStyle(
       fontSize: isGrandTotal ? 18 : 16,
       fontWeight: isGrandTotal ? FontWeight.bold : FontWeight.normal,
