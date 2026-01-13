@@ -65,7 +65,10 @@ class _BengkelDetailPageState extends State<BengkelDetailPage> {
                       width: double.infinity,
                       height: 180,
                       color: AppColor.colorGrey,
-                      child: Icon(Icons.image_not_supported, color: Colors.white),
+                      child: Icon(
+                        Icons.image_not_supported,
+                        color: Colors.white,
+                      ),
                     );
                   },
                 ),
@@ -75,7 +78,10 @@ class _BengkelDetailPageState extends State<BengkelDetailPage> {
               // Nama dan alamat
               Text(
                 bengkel.name,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               Text(
                 "${bengkel.alamat}, ${bengkel.kelurahan?.name ?? ''}, ${bengkel.kecamatan?.name ?? ''}",
@@ -98,7 +104,10 @@ class _BengkelDetailPageState extends State<BengkelDetailPage> {
 
               const SizedBox(height: 24),
 
-              Text("Jadwal Buka", style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                "Jadwal Buka",
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const SizedBox(height: 8),
               bengkel.jadwals.isEmpty
                   ? const Text("Belum ada jadwal tersedia.")
@@ -246,7 +255,8 @@ class _BengkelDetailPageState extends State<BengkelDetailPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => BookingFormPage(bengkelId: 2),
+                    builder: (context) =>
+                        BookingFormPage(bengkelId: bengkel.id),
                   ),
                 );
               },

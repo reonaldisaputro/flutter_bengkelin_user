@@ -69,10 +69,7 @@ class _BookingFormPageState extends State<BookingFormPage> {
     final formatTime = _selectedTime?.format(context) ?? '';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Formulir Booking'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Formulir Booking'), centerTitle: true),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
@@ -80,13 +77,38 @@ class _BookingFormPageState extends State<BookingFormPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Data Kendaraan", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text(
+                "Data Kendaraan",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 12),
-              _buildTextField(_brandController, "Brand Mobil", "Contoh: Toyota"),
-              _buildTextField(_modelController, "Model Mobil", "Contoh: Avanza"),
-              _buildTextField(_platController, "No. Polisi", "Contoh: B 1234 XYZ"),
-              _buildTextField(_tahunController, "Tahun Pembuatan", "Contoh: 2015", keyboardType: TextInputType.number),
-              _buildTextField(_kmController, "Kilometer", "Contoh: 50000", keyboardType: TextInputType.number),
+              _buildTextField(
+                _brandController,
+                "Brand Mobil",
+                "Contoh: Toyota",
+              ),
+              _buildTextField(
+                _modelController,
+                "Model Mobil",
+                "Contoh: Avanza",
+              ),
+              _buildTextField(
+                _platController,
+                "No. Polisi",
+                "Contoh: B 1234 XYZ",
+              ),
+              _buildTextField(
+                _tahunController,
+                "Tahun Pembuatan",
+                "Contoh: 2015",
+                keyboardType: TextInputType.number,
+              ),
+              _buildTextField(
+                _kmController,
+                "Kilometer",
+                "Contoh: 50000",
+                keyboardType: TextInputType.number,
+              ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 decoration: const InputDecoration(
@@ -95,13 +117,19 @@ class _BookingFormPageState extends State<BookingFormPage> {
                 ),
                 value: _selectedTransmisi,
                 items: ['Manual', 'Matic'].map((trans) {
-                  return DropdownMenuItem(value: trans.toLowerCase(), child: Text(trans));
+                  return DropdownMenuItem(
+                    value: trans.toLowerCase(),
+                    child: Text(trans),
+                  );
                 }).toList(),
                 onChanged: (val) => setState(() => _selectedTransmisi = val),
                 validator: (val) => val == null ? 'Pilih transmisi' : null,
               ),
               const SizedBox(height: 24),
-              const Text("Waktu Service", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text(
+                "Waktu Service",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 12),
               GestureDetector(
                 onTap: _pickDate,
@@ -113,7 +141,8 @@ class _BookingFormPageState extends State<BookingFormPage> {
                       border: OutlineInputBorder(),
                     ),
                     controller: TextEditingController(text: formatDate),
-                    validator: (_) => _selectedDate == null ? 'Pilih tanggal' : null,
+                    validator: (_) =>
+                        _selectedDate == null ? 'Pilih tanggal' : null,
                   ),
                 ),
               ),
@@ -128,7 +157,8 @@ class _BookingFormPageState extends State<BookingFormPage> {
                       border: OutlineInputBorder(),
                     ),
                     controller: TextEditingController(text: formatTime),
-                    validator: (_) => _selectedTime == null ? 'Pilih waktu' : null,
+                    validator: (_) =>
+                        _selectedTime == null ? 'Pilih waktu' : null,
                   ),
                 ),
               ),
@@ -149,29 +179,43 @@ class _BookingFormPageState extends State<BookingFormPage> {
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green.shade700,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   icon: const Icon(Icons.arrow_forward, color: Colors.white),
-                  label: const Text("Selanjutnya", style: TextStyle(color: Colors.white)),
+                  label: const Text(
+                    "Selanjutnya",
+                    style: TextStyle(color: Colors.white),
+                  ),
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
                       if (_selectedDate == null) {
-                        showToast(context: context, msg: "Tanggal service wajib diisi");
+                        showToast(
+                          context: context,
+                          msg: "Tanggal service wajib diisi",
+                        );
                         return;
                       }
                       if (_selectedTime == null) {
-                        showToast(context: context, msg: "Waktu service wajib diisi");
+                        showToast(
+                          context: context,
+                          msg: "Waktu service wajib diisi",
+                        );
                         return;
                       }
                       if (_selectedTransmisi == null) {
-                        showToast(context: context, msg: "Transmisi wajib dipilih");
+                        showToast(
+                          context: context,
+                          msg: "Transmisi wajib dipilih",
+                        );
                         return;
                       }
                       handleBookingBengkel();
                     }
                   },
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -180,11 +224,11 @@ class _BookingFormPageState extends State<BookingFormPage> {
   }
 
   Widget _buildTextField(
-      TextEditingController controller,
-      String label,
-      String hint, {
-        TextInputType keyboardType = TextInputType.text,
-      }) {
+    TextEditingController controller,
+    String label,
+    String hint, {
+    TextInputType keyboardType = TextInputType.text,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
@@ -195,7 +239,8 @@ class _BookingFormPageState extends State<BookingFormPage> {
           hintText: hint,
           border: const OutlineInputBorder(),
         ),
-        validator: (val) => val == null || val.isEmpty ? 'Field wajib diisi' : null,
+        validator: (val) =>
+            val == null || val.isEmpty ? 'Field wajib diisi' : null,
       ),
     );
   }
@@ -203,33 +248,34 @@ class _BookingFormPageState extends State<BookingFormPage> {
   void handleBookingBengkel() {
     final bookingDate = DateFormat('yyyy-MM-dd').format(_selectedDate!);
     final time = _selectedTime!;
-    final bookingTime = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    final bookingTime =
+        '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
 
-
-    BookingViewmodel().bookingBengkel(
-      bengkelId: widget.bengkelId,
-      bookingDate: bookingDate,
-      timeBooking: bookingTime,
-      brand: _brandController.text.trim(),
-      model: _modelController.text.trim(),
-      plat: _platController.text.trim(),
-      tahunPembuatan: int.tryParse(_tahunController.text.trim()) ?? 0,
-      kilometer: int.tryParse(_kmController.text.trim()) ?? 0,
-      transmisi: _selectedTransmisi ?? '',
-      notes: _noteController.text.trim(),
-    ).then((value) {
-      if (value.code == 200) {
-        if (!mounted) return;
-        showToast(context: context, msg: value.message);
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const HomePage()),
+    BookingViewmodel()
+        .bookingBengkel(
+          bengkelId: widget.bengkelId,
+          bookingDate: bookingDate,
+          timeBooking: bookingTime,
+          brand: _brandController.text.trim(),
+          model: _modelController.text.trim(),
+          plat: _platController.text.trim(),
+          tahunPembuatan: int.tryParse(_tahunController.text.trim()) ?? 0,
+          kilometer: int.tryParse(_kmController.text.trim()) ?? 0,
+          transmisi: _selectedTransmisi ?? '',
+          notes: _noteController.text.trim(),
+        )
+        .then((value) {
+          if (value.code == 200) {
+            if (!mounted) return;
+            showToast(context: context, msg: value.message);
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const HomePage()),
               (Route<dynamic> route) => false,
-        );
-      } else {
-        if (!mounted) return;
-        showToast(context: context, msg: value.message);
-      }
-    });
+            );
+          } else {
+            if (!mounted) return;
+            showToast(context: context, msg: value.message);
+          }
+        });
   }
-
 }

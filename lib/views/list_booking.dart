@@ -17,7 +17,6 @@ class BookingListPage extends StatefulWidget {
 }
 
 class _BookingListPageState extends State<BookingListPage> {
-
   bool _isLoading = true;
   List<UserBookingModel> _listUserBooking = [];
 
@@ -28,15 +27,17 @@ class _BookingListPageState extends State<BookingListPage> {
       if (value.code == 200) {
         final List<dynamic> listData = value.data as List<dynamic>;
         setState(() {
-          _listUserBooking =
-              listData.map((e) => UserBookingModel.fromJson(e)).toList();
+          _listUserBooking = listData
+              .map((e) => UserBookingModel.fromJson(e))
+              .toList();
         });
       } else if (value.code == 401) {
         await Session().logout();
         if (!mounted) return;
         Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const HomePage()),
-                (Route<dynamic> route) => false);
+          MaterialPageRoute(builder: (_) => const HomePage()),
+          (Route<dynamic> route) => false,
+        );
       }
     } catch (e) {
       debugPrint("Error fetching booking: $e");
@@ -73,23 +74,24 @@ class _BookingListPageState extends State<BookingListPage> {
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(
-          color: Color(0xFF1D2A39),
-        ),
+        iconTheme: const IconThemeData(color: Color(0xFF1D2A39)),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _listUserBooking.isEmpty
           ? _buildEmptyState()
           : ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        itemCount: _listUserBooking.length,
-        itemBuilder: (context, index) {
-          final booking = _listUserBooking[index];
-          // 2. Gunakan widget Card yang baru
-          return _BookingCard(booking: booking);
-        },
-      ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 8.0,
+              ),
+              itemCount: _listUserBooking.length,
+              itemBuilder: (context, index) {
+                final booking = _listUserBooking[index];
+                // 2. Gunakan widget Card yang baru
+                return _BookingCard(booking: booking);
+              },
+            ),
     );
   }
 
@@ -102,7 +104,11 @@ class _BookingListPageState extends State<BookingListPage> {
           const SizedBox(height: 16),
           const Text(
             'Belum Ada Booking',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black54,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -114,7 +120,6 @@ class _BookingListPageState extends State<BookingListPage> {
       ),
     );
   }
-
 }
 
 class _BookingCard extends StatelessWidget {
@@ -133,7 +138,8 @@ class _BookingCard extends StatelessWidget {
   }
 
   Widget _buildStatusBadge(String? status) {
-    final ({Color backgroundColor, Color textColor}) statusInfo = _getStatusInfo(status);
+    final ({Color backgroundColor, Color textColor}) statusInfo =
+        _getStatusInfo(status);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -155,15 +161,30 @@ class _BookingCard extends StatelessWidget {
   ({Color backgroundColor, Color textColor}) _getStatusInfo(String? status) {
     switch (status?.toLowerCase()) {
       case 'diterima':
-        return (backgroundColor: const Color(0xFFE0F8F0), textColor: const Color(0xFF00875A));
+        return (
+          backgroundColor: const Color(0xFFE0F8F0),
+          textColor: const Color(0xFF00875A),
+        );
       case 'pending':
-        return (backgroundColor: const Color(0xFFFFF4DE), textColor: const Color(0xFFFFAA00));
+        return (
+          backgroundColor: const Color(0xFFFFF4DE),
+          textColor: const Color(0xFFFFAA00),
+        );
       case 'dibatalkan':
-        return (backgroundColor: const Color(0xFFFFECEB), textColor: const Color(0xFFDE350B));
+        return (
+          backgroundColor: const Color(0xFFFFECEB),
+          textColor: const Color(0xFFDE350B),
+        );
       case 'selesai':
-        return (backgroundColor: const Color(0xFFE6F7FF), textColor: const Color(0xFF0065FF));
+        return (
+          backgroundColor: const Color(0xFFE6F7FF),
+          textColor: const Color(0xFF0065FF),
+        );
       default:
-        return (backgroundColor: Colors.grey.shade200, textColor: Colors.grey.shade800);
+        return (
+          backgroundColor: Colors.grey.shade200,
+          textColor: Colors.grey.shade800,
+        );
     }
   }
 
@@ -171,17 +192,19 @@ class _BookingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16.0),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16.0),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
       elevation: 4,
       shadowColor: Colors.black.withOpacity(0.1),
       child: InkWell(
         borderRadius: BorderRadius.circular(16.0),
         onTap: () {
           // TODO: Navigasi ke halaman detail booking
-          // Navigator.push(context, MaterialPageRoute(builder: (context) => BookingDetailPage(bookingId: booking.id)));
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Buka detail untuk booking ID: ${booking.id}')));
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BookingDetailPage(bookingId: booking.id),
+            ),
+          );
         },
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -197,7 +220,10 @@ class _BookingCard extends StatelessWidget {
                     backgroundColor: Colors.grey.shade100,
                     child: Image.asset(
                       'assets/logo_bengkel.png',
-                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.build_circle_outlined, color: Colors.grey),
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.build_circle_outlined,
+                        color: Colors.grey,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -226,7 +252,9 @@ class _BookingCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   // Menggunakan status badge yang sudah dibuat
-                  _buildStatusBadge("Pending"), // <-- Ganti dengan booking.status
+                  _buildStatusBadge(
+                    "Pending",
+                  ), // <-- Ganti dengan booking.status
                 ],
               ),
               const Padding(
@@ -246,7 +274,7 @@ class _BookingCard extends StatelessWidget {
                     text: _formatTime(booking.createdAt),
                   ),
                 ],
-              )
+              ),
             ],
           ),
         ),
