@@ -36,6 +36,11 @@ class ChatViewmodel {
     debugPrint("body nya chat send $body");
 
     final resp = await Network.postApiWithHeaders(Endpoint.chatUrl, body, headers);
+
+    // Debug: Check response type
+    debugPrint("Response type: ${resp.runtimeType}");
+    debugPrint("Response content: $resp");
+
     return Resp.fromJson(resp);
   }
 }

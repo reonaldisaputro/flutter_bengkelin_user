@@ -19,9 +19,12 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
   bool _sending = false;
 
   /// Pesan ditampilkan apa adanya dari API:
-  /// { type: 'text'|'link'|'card'|'user', text?, title?, subtitle?, url?, actions?[] }
+  /// Supports: text, link, card, carousel, product_card, booking_card, time_picker, user
   final List<Map<String, dynamic>> _messages = [];
   List<Map<String, dynamic>> _quickReplies = [];
+
+  /// Flow info untuk multi-turn conversations (booking flow, etc)
+  Map<String, dynamic>? _currentFlow;
 
   @override
   void initState() {
@@ -53,11 +56,21 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
       final Map<String, dynamic> d = Map<String, dynamic>.from(resp.data ?? {});
       final List apiMsgs = (d['messages'] ?? []) as List;
       final List apiQR = (d['quick_replies'] ?? []) as List;
+      final flow = d['flow'];
+
+      // Debug logging
+      debugPrint("=== CHAT RESPONSE DEBUG ===");
+      debugPrint("Messages count: ${apiMsgs.length}");
+      for (var msg in apiMsgs) {
+        debugPrint("Message type: ${msg['type']}");
+      }
+      debugPrint("=========================");
 
       setState(() {
         _contextId = (d['context_id'] ?? _contextId)?.toString();
         _messages.addAll(apiMsgs.map((e) => Map<String, dynamic>.from(e)));
         _quickReplies = apiQR.map((e) => Map<String, dynamic>.from(e)).toList();
+        _currentFlow = flow != null ? Map<String, dynamic>.from(flow) : null;
         _sending = false;
       });
       _jumpToBottom();
@@ -93,8 +106,6 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Asisten Bengkelin'),
@@ -102,6 +113,14 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
       ),
       body: Column(
         children: [
+          // Flow indicator
+          if (_currentFlow != null && _currentFlow!['active'] == true)
+            _FlowIndicator(
+              flowName: _currentFlow!['name']?.toString() ?? '',
+              step: _currentFlow!['step']?.toString() ?? '',
+              canCancel: _currentFlow!['can_cancel'] == true,
+              onCancel: _sending ? null : () => _send(payload: 'cancel'),
+            ),
           // daftar pesan
           Expanded(
             child: ListView.builder(
@@ -113,7 +132,10 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
                   return const _TypingBubble();
                 }
                 final m = _messages[i];
-                final type = (m['type'] ?? 'text').toString();
+                final type = (m['type'] ?? 'text').toString().toLowerCase().trim();
+
+                // Debug: Log type untuk setiap message
+                debugPrint("Rendering message $i with type: '$type'");
 
                 switch (type) {
                   case 'user':
@@ -129,12 +151,64 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
                     return _BotCardBubble(
                       title: m['title']?.toString() ?? 'Info',
                       subtitle: m['subtitle']?.toString(),
+                      image: m['image']?.toString(),
                       actions: (m['actions'] as List? ?? const [])
                           .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
                           .toList(),
+                      onPayload: _sending ? null : (p) => _send(payload: p),
+                    );
+                  case 'carousel':
+                    return _BotCarouselBubble(
+                      items: (m['items'] as List? ?? const [])
+                          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+                          .toList(),
+                      onPayload: _sending ? null : (p) => _send(payload: p),
+                    );
+                  case 'product_card':
+                    return _BotProductCardBubble(
+                      id: m['id'],
+                      name: m['name']?.toString() ?? '',
+                      priceFormatted: m['price_formatted']?.toString() ?? '',
+                      bengkel: m['bengkel']?.toString() ?? '',
+                      stock: m['stock'] ?? 0,
+                      image: m['image']?.toString(),
+                      actions: (m['actions'] as List? ?? const [])
+                          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+                          .toList(),
+                      onPayload: _sending ? null : (p) => _send(payload: p),
+                    );
+                  case 'booking_card':
+                    return _BotBookingCardBubble(
+                      id: m['id'],
+                      bengkel: m['bengkel'] != null
+                          ? Map<String, dynamic>.from(m['bengkel'])
+                          : null,
+                      tanggal: m['tanggal']?.toString() ?? '',
+                      waktu: m['waktu']?.toString() ?? '',
+                      vehicle: m['vehicle'] != null
+                          ? Map<String, dynamic>.from(m['vehicle'])
+                          : null,
+                      status: m['status']?.toString() ?? '',
+                      actions: (m['actions'] as List? ?? const [])
+                          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+                          .toList(),
+                      onPayload: _sending ? null : (p) => _send(payload: p),
+                    );
+                  case 'time_picker':
+                    return _BotTimePickerBubble(
+                      date: m['date']?.toString() ?? '',
+                      availableSlots: (m['available_slots'] as List? ?? const [])
+                          .map((e) => e.toString())
+                          .toList(),
+                      bookedSlots: (m['booked_slots'] as List? ?? const [])
+                          .map((e) => e.toString())
+                          .toList(),
+                      onSelectTime: _sending ? null : (time) => _send(payload: 'select_time_$time'),
                     );
                   default:
-                    return _BotTextBubble(text: m.toString());
+                    debugPrint("⚠️ Unknown message type: '$type' - displaying as raw text");
+                    debugPrint("Message content: $m");
+                    return _BotTextBubble(text: 'Tipe pesan tidak dikenal: $type');
                 }
               },
             ),
@@ -226,6 +300,73 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
 /// -----------------------------
 /// Bubbles & Widgets
 /// -----------------------------
+
+/// Flow indicator untuk multi-turn conversations
+class _FlowIndicator extends StatelessWidget {
+  const _FlowIndicator({
+    required this.flowName,
+    required this.step,
+    required this.canCancel,
+    this.onCancel,
+  });
+
+  final String flowName;
+  final String step;
+  final bool canCancel;
+  final VoidCallback? onCancel;
+
+  String _getFlowLabel() {
+    switch (flowName) {
+      case 'booking':
+        return 'Booking Bengkel';
+      case 'rating':
+        return 'Beri Rating';
+      default:
+        return flowName;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: cs.primaryContainer,
+        border: Border(bottom: BorderSide(color: cs.outline.withValues(alpha: 0.2))),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.sync, size: 16, color: cs.onPrimaryContainer),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${_getFlowLabel()} • $step',
+              style: TextStyle(
+                fontSize: 13,
+                color: cs.onPrimaryContainer,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          if (canCancel)
+            TextButton.icon(
+              onPressed: onCancel,
+              icon: const Icon(Icons.close, size: 16),
+              label: const Text('Batal'),
+              style: TextButton.styleFrom(
+                foregroundColor: cs.error,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _UserBubble extends StatelessWidget {
   const _UserBubble({required this.text});
   final String text;
@@ -320,16 +461,21 @@ class _BotLinkBubble extends StatelessWidget {
   }
 }
 
+/// Card bubble dengan support untuk image dan payload actions
 class _BotCardBubble extends StatelessWidget {
   const _BotCardBubble({
     required this.title,
     this.subtitle,
+    this.image,
     required this.actions,
+    this.onPayload,
   });
 
   final String title;
   final String? subtitle;
+  final String? image;
   final List<Map<String, dynamic>> actions;
+  final void Function(String payload)? onPayload;
 
   @override
   Widget build(BuildContext context) {
@@ -338,7 +484,482 @@ class _BotCardBubble extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
-        width: 360,
+        width: 320,
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: cs.outlineVariant),
+          boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 10, offset: Offset(0, 6))],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (image != null && image!.isNotEmpty)
+              Image.network(
+                image!,
+                height: 120,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  height: 120,
+                  color: cs.surfaceContainerHighest,
+                  child: Icon(Icons.image_not_supported, color: cs.outline),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: Theme.of(context).textTheme.titleMedium),
+                  if ((subtitle ?? '').isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(subtitle!, style: TextStyle(color: Colors.grey[700])),
+                  ],
+                  if (actions.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: actions.map((a) => _buildActionButton(a, cs)).toList(),
+                    )
+                  ]
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton(Map<String, dynamic> action, ColorScheme cs) {
+    final label = action['label']?.toString() ?? 'Buka';
+    final url = action['url']?.toString();
+    final payload = action['payload']?.toString();
+
+    // Jika ada payload, gunakan onPayload callback
+    if (payload != null && payload.isNotEmpty) {
+      return FilledButton.tonal(
+        onPressed: onPayload != null ? () => onPayload!(payload) : null,
+        child: Text(label),
+      );
+    }
+
+    // Jika ada URL, buka di browser
+    if (url != null && url.isNotEmpty) {
+      return OutlinedButton.icon(
+        icon: const Icon(Icons.open_in_new_rounded, size: 16),
+        label: Text(label),
+        onPressed: () async {
+          final uri = Uri.parse(url);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        },
+      );
+    }
+
+    return OutlinedButton(onPressed: null, child: Text(label));
+  }
+}
+
+/// Carousel - horizontal scrollable cards
+class _BotCarouselBubble extends StatelessWidget {
+  const _BotCarouselBubble({
+    required this.items,
+    this.onPayload,
+  });
+
+  final List<Map<String, dynamic>> items;
+  final void Function(String payload)? onPayload;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      height: 220,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final item = items[index];
+          return SizedBox(
+            width: 260,
+            child: _BotCardBubble(
+              title: item['title']?.toString() ?? '',
+              subtitle: item['subtitle']?.toString(),
+              image: item['image']?.toString(),
+              actions: (item['actions'] as List? ?? const [])
+                  .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+                  .toList(),
+              onPayload: onPayload,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Product card dengan harga dan stock
+class _BotProductCardBubble extends StatelessWidget {
+  const _BotProductCardBubble({
+    required this.id,
+    required this.name,
+    required this.priceFormatted,
+    required this.bengkel,
+    required this.stock,
+    this.image,
+    required this.actions,
+    this.onPayload,
+  });
+
+  final dynamic id;
+  final String name;
+  final String priceFormatted;
+  final String bengkel;
+  final int stock;
+  final String? image;
+  final List<Map<String, dynamic>> actions;
+  final void Function(String payload)? onPayload;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        width: 320,
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: cs.outlineVariant),
+          boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 10, offset: Offset(0, 6))],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (image != null && image!.isNotEmpty)
+              Image.network(
+                image!,
+                height: 120,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  height: 120,
+                  color: cs.surfaceContainerHighest,
+                  child: Icon(Icons.shopping_bag, size: 40, color: cs.outline),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name, style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 4),
+                  Text(
+                    priceFormatted,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: cs.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.store, size: 14, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          bengkel,
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    stock > 0 ? 'Stok: $stock' : 'Stok habis',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: stock > 0 ? Colors.green[700] : cs.error,
+                    ),
+                  ),
+                  if (actions.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: actions.map((a) {
+                        final label = a['label']?.toString() ?? '';
+                        final payload = a['payload']?.toString();
+                        final url = a['url']?.toString();
+
+                        if (payload != null && payload.isNotEmpty) {
+                          return FilledButton.tonal(
+                            onPressed: stock > 0 && onPayload != null
+                                ? () => onPayload!(payload)
+                                : null,
+                            child: Text(label),
+                          );
+                        }
+                        if (url != null && url.isNotEmpty) {
+                          return OutlinedButton(
+                            onPressed: () async {
+                              try {
+                                final uri = Uri.parse(url);
+                                await launchUrl(uri, mode: LaunchMode.externalApplication);
+                              } catch (e) {
+                                debugPrint('Error launching URL: $e');
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Tidak dapat membuka link')),
+                                  );
+                                }
+                              }
+                            },
+                            child: Text(label),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      }).toList(),
+                    ),
+                  ]
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Booking card dengan info bengkel, tanggal, kendaraan
+class _BotBookingCardBubble extends StatelessWidget {
+  const _BotBookingCardBubble({
+    required this.id,
+    this.bengkel,
+    required this.tanggal,
+    required this.waktu,
+    this.vehicle,
+    required this.status,
+    required this.actions,
+    this.onPayload,
+  });
+
+  final dynamic id;
+  final Map<String, dynamic>? bengkel;
+  final String tanggal;
+  final String waktu;
+  final Map<String, dynamic>? vehicle;
+  final String status;
+  final List<Map<String, dynamic>> actions;
+  final void Function(String payload)? onPayload;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final bengkelName = bengkel?['name']?.toString() ?? 'Bengkel';
+    final bengkelImage = bengkel?['image']?.toString();
+    final vehicleBrand = vehicle?['brand']?.toString() ?? '';
+    final vehicleModel = vehicle?['model']?.toString() ?? '';
+    final vehiclePlat = vehicle?['plat']?.toString() ?? '';
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        width: 320,
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: cs.outlineVariant),
+          boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 10, offset: Offset(0, 6))],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header dengan gambar bengkel
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: cs.primaryContainer.withValues(alpha: 0.3),
+              ),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: bengkelImage != null
+                        ? Image.network(
+                            bengkelImage,
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 48,
+                              height: 48,
+                              color: cs.primaryContainer,
+                              child: Icon(Icons.build, color: cs.onPrimaryContainer),
+                            ),
+                          )
+                        : Container(
+                            width: 48,
+                            height: 48,
+                            color: cs.primaryContainer,
+                            child: Icon(Icons.build, color: cs.onPrimaryContainer),
+                          ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          bengkelName,
+                          style: Theme.of(context).textTheme.titleMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: cs.surface,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(status, style: const TextStyle(fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Tanggal & Waktu
+                  Row(
+                    children: [
+                      Icon(Icons.calendar_today, size: 16, color: cs.primary),
+                      const SizedBox(width: 8),
+                      Text(tanggal, style: const TextStyle(fontWeight: FontWeight.w500)),
+                      const SizedBox(width: 16),
+                      Icon(Icons.access_time, size: 16, color: cs.primary),
+                      const SizedBox(width: 4),
+                      Text(waktu, style: const TextStyle(fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                  if (vehicle != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.two_wheeler, size: 16, color: Colors.grey[600]),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '$vehicleBrand $vehicleModel • $vehiclePlat',
+                            style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (actions.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: actions.map((a) {
+                        final label = a['label']?.toString() ?? '';
+                        final payload = a['payload']?.toString();
+                        final url = a['url']?.toString();
+
+                        if (payload != null && payload.isNotEmpty) {
+                          final isCancel = payload.contains('cancel');
+                          return isCancel
+                              ? OutlinedButton(
+                                  onPressed: onPayload != null ? () => onPayload!(payload) : null,
+                                  style: OutlinedButton.styleFrom(foregroundColor: cs.error),
+                                  child: Text(label),
+                                )
+                              : FilledButton.tonal(
+                                  onPressed: onPayload != null ? () => onPayload!(payload) : null,
+                                  child: Text(label),
+                                );
+                        }
+                        if (url != null && url.isNotEmpty) {
+                          return OutlinedButton(
+                            onPressed: () async {
+                              try {
+                                final uri = Uri.parse(url);
+                                await launchUrl(uri, mode: LaunchMode.externalApplication);
+                              } catch (e) {
+                                debugPrint('Error launching URL: $e');
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Tidak dapat membuka link')),
+                                  );
+                                }
+                              }
+                            },
+                            child: Text(label),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      }).toList(),
+                    ),
+                  ]
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Time picker untuk memilih slot waktu booking
+class _BotTimePickerBubble extends StatelessWidget {
+  const _BotTimePickerBubble({
+    required this.date,
+    required this.availableSlots,
+    required this.bookedSlots,
+    this.onSelectTime,
+  });
+
+  final String date;
+  final List<String> availableSlots;
+  final List<String> bookedSlots;
+  final void Function(String time)? onSelectTime;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final allSlots = [...availableSlots, ...bookedSlots]..sort();
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        width: 320,
         decoration: BoxDecoration(
           color: cs.surface,
           borderRadius: BorderRadius.circular(16),
@@ -349,33 +970,66 @@ class _BotCardBubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-            if ((subtitle ?? '').isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(subtitle!, style: TextStyle(color: Colors.grey[700])),
+            Row(
+              children: [
+                Icon(Icons.schedule, size: 18, color: cs.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Pilih Waktu',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ),
+            if (date.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(date, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
             ],
-            if (actions.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: actions.map((a) {
-                  final label = a['label']?.toString() ?? 'Buka';
-                  final url = a['url']?.toString() ?? '';
-                  return OutlinedButton.icon(
-                    icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                    label: Text(label),
-                    onPressed: () async {
-                      if (url.isEmpty) return;
-                      final uri = Uri.parse(url);
-                      if (await canLaunchUrl(uri)) {
-                        await launchUrl(uri, mode: LaunchMode.externalApplication);
-                      }
-                    },
-                  );
-                }).toList(),
-              )
-            ]
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: allSlots.map((slot) {
+                final isBooked = bookedSlots.contains(slot);
+                return ChoiceChip(
+                  label: Text(slot),
+                  selected: false,
+                  onSelected: isBooked || onSelectTime == null
+                      ? null
+                      : (_) => onSelectTime!(slot),
+                  backgroundColor: isBooked ? Colors.grey[200] : null,
+                  labelStyle: TextStyle(
+                    color: isBooked ? Colors.grey : null,
+                    decoration: isBooked ? TextDecoration.lineThrough : null,
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text('Tersedia', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                const SizedBox(width: 12),
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text('Terisi', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+              ],
+            ),
           ],
         ),
       ),
@@ -399,9 +1053,9 @@ class _TypingBubble extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: cs.outlineVariant),
         ),
-        child: Row(
+        child: const Row(
           mainAxisSize: MainAxisSize.min,
-          children: const [
+          children: [
             _Dot(), SizedBox(width: 4),
             _Dot(), SizedBox(width: 4),
             _Dot(),
