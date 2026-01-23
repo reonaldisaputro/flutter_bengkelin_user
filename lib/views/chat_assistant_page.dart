@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../viewmodel/chat_viewmodel.dart';
+import 'booking_detail_page.dart';
 
 class ChatAssistantPage extends StatefulWidget {
   const ChatAssistantPage({super.key});
@@ -193,6 +194,14 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
                           .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
                           .toList(),
                       onPayload: _sending ? null : (p) => _send(payload: p),
+                      onNavigateToDetail: (bookingId) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BookingDetailPage(bookingId: bookingId),
+                          ),
+                        );
+                      },
                     );
                   case 'time_picker':
                     return _BotTimePickerBubble(
@@ -756,6 +765,7 @@ class _BotBookingCardBubble extends StatelessWidget {
     required this.status,
     required this.actions,
     this.onPayload,
+    this.onNavigateToDetail,
   });
 
   final dynamic id;
@@ -766,6 +776,7 @@ class _BotBookingCardBubble extends StatelessWidget {
   final String status;
   final List<Map<String, dynamic>> actions;
   final void Function(String payload)? onPayload;
+  final void Function(int bookingId)? onNavigateToDetail;
 
   @override
   Widget build(BuildContext context) {
@@ -905,6 +916,17 @@ class _BotBookingCardBubble extends StatelessWidget {
                                 );
                         }
                         if (url != null && url.isNotEmpty) {
+                          // Check if URL is a booking detail URL
+                          final bookingMatch = RegExp(r'/booking/(\d+)').firstMatch(url);
+                          if (bookingMatch != null && onNavigateToDetail != null) {
+                            final bookingId = int.parse(bookingMatch.group(1)!);
+                            return FilledButton.tonal(
+                              onPressed: () => onNavigateToDetail!(bookingId),
+                              child: Text(label),
+                            );
+                          }
+
+                          // Otherwise, open in browser
                           return OutlinedButton(
                             onPressed: () async {
                               try {
