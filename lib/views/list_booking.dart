@@ -254,7 +254,7 @@ class _BookingCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   // Menggunakan status badge yang sudah dibuat
                   _buildStatusBadge(
-                    "Pending",
+                    booking.bookingStatus,
                   ), // <-- Ganti dengan booking.status
                 ],
               ),
