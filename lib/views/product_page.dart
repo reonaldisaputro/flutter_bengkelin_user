@@ -1,11 +1,16 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bengkelin_user/views/product_detail_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import '../../model/product_model.dart';
-import '../../viewmodel/product_viewmodel.dart';
-import '../../widget/custom_toast.dart';
+import '../model/category_model.dart';
+import '../model/product_model.dart';
 import '../model/product_list_response.dart';
+import '../viewmodel/category_viewmodel.dart';
+import '../viewmodel/product_viewmodel.dart';
+import '../widget/custom_toast.dart';
 
 class ProductPage extends StatefulWidget {
   const ProductPage({super.key});
@@ -18,35 +23,59 @@ class _ProductPageState extends State<ProductPage> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  List<Map<String, dynamic>> filteredProducts = [];
   List<ProductModel> _products = [];
+  List<CategoryModel> _categories = [];
 
   int _currentPage = 1;
   int _lastPage = 1;
   bool _isLoadingMore = false;
   bool _isInitialLoading = true;
+  bool _isLoadingCategories = true;
+
+  int? _selectedCategoryId;
+  String _searchKeyword = '';
+  Timer? _debounce;
+
+  // Price filter
+  int? _minPrice;
+  int? _maxPrice;
+  final TextEditingController _minPriceController = TextEditingController();
+  final TextEditingController _maxPriceController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    getProducts();
+    debugPrint('=== ProductPage initState called ===');
+    _getCategories();
+    _getProducts();
     _searchController.addListener(_onSearchChanged);
     _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _minPriceController.dispose();
+    _maxPriceController.dispose();
     super.dispose();
   }
 
   void _onSearchChanged() {
-    // TODO: Implement search functionality
-    // final query = _searchController.text.toLowerCase();
-    setState(() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      final query = _searchController.text.trim();
+      if (query.length >= 3 || query.isEmpty) {
+        setState(() {
+          _searchKeyword = query.length >= 3 ? query : '';
+          _currentPage = 1;
+          _products.clear();
+        });
+        _getProducts();
+      }
     });
   }
 
@@ -78,26 +107,113 @@ class _ProductPageState extends State<ProductPage> {
       ),
       body: Column(
         children: [
-          // Search Bar
+          // Search Bar with Filter Button
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: 16.0,
               vertical: 8.0,
             ),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search by name or shop',
-                hintStyle: TextStyle(color: Colors.grey[500]),
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                fillColor: Colors.white,
-                filled: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search product (min 3 characters)',
+                      hintStyle: TextStyle(color: Colors.grey[500]),
+                      prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                      fillColor: Colors.white,
+                      filled: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                    ),
+                  ),
                 ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 15),
-              ),
+                const SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: (_minPrice != null || _maxPrice != null)
+                        ? const Color(0xFF1A1A2E)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: IconButton(
+                    onPressed: _showPriceFilterBottomSheet,
+                    icon: Icon(
+                      Icons.filter_list,
+                      color: (_minPrice != null || _maxPrice != null)
+                          ? Colors.white
+                          : Colors.grey,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8.0),
+
+          // Category Filter
+          SizedBox(
+            height: 40,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              itemCount: _categories.length + 1,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: FilterChip(
+                      label: const Text('Semua'),
+                      selected: _selectedCategoryId == null,
+                      onSelected: (selected) {
+                        if (selected) {
+                          setState(() {
+                            _selectedCategoryId = null;
+                            _currentPage = 1;
+                            _products.clear();
+                          });
+                          _getProducts();
+                        }
+                      },
+                      selectedColor: const Color(0xFF1A1A2E),
+                      labelStyle: TextStyle(
+                        color: _selectedCategoryId == null
+                            ? Colors.white
+                            : Colors.black,
+                      ),
+                      backgroundColor: Colors.white,
+                    ),
+                  );
+                }
+
+                final category = _categories[index - 1];
+                final isSelected = _selectedCategoryId == category.id;
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: FilterChip(
+                    label: Text(category.name),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      setState(() {
+                        _selectedCategoryId = selected ? category.id : null;
+                        _currentPage = 1;
+                        _products.clear();
+                      });
+                      _getProducts();
+                    },
+                    selectedColor: const Color(0xFF1A1A2E),
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black,
+                    ),
+                    backgroundColor: Colors.white,
+                  ),
+                );
+              },
             ),
           ),
           const SizedBox(height: 16.0),
@@ -108,46 +224,203 @@ class _ProductPageState extends State<ProductPage> {
                 ? const Center(child: CircularProgressIndicator())
                 : Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: GridView.builder(
-                      controller: _scrollController,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 16.0,
-                        mainAxisSpacing: 16.0,
-                        childAspectRatio: 0.7,
-                      ),
-                      itemCount:
-                          _products.length + (_isLoadingMore ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index == _products.length) {
-                          return const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: CircularProgressIndicator(),
-                            ),
-                          );
-                        }
-
-                        final product = _products[index];
-                        return InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    ProductDetailPage(productId: product.id),
-                              ),
-                            );
-                          },
-                          child: _buildProductCard(product),
-                        );
-                      },
-                    ),
+                    child: Platform.isAndroid
+                        ? RefreshIndicator(
+                            onRefresh: _onRefresh,
+                            child: _buildProductGrid(),
+                          )
+                        : _buildProductGrid(),
                   ),
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _onRefresh() async {
+    _currentPage = 1;
+    _lastPage = 1;
+    _products.clear();
+    await _getProducts();
+  }
+
+  void _showPriceFilterBottomSheet() {
+    _minPriceController.text = _minPrice?.toString() ?? '';
+    _maxPriceController.text = _maxPrice?.toString() ?? '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 16,
+            right: 16,
+            top: 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Filter Harga',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A2E),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _minPriceController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Harga Min',
+                        prefixText: 'Rp ',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextField(
+                      controller: _maxPriceController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Harga Max',
+                        prefixText: 'Rp ',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        _minPriceController.clear();
+                        _maxPriceController.clear();
+                        setState(() {
+                          _minPrice = null;
+                          _maxPrice = null;
+                          _currentPage = 1;
+                          _products.clear();
+                        });
+                        Navigator.pop(context);
+                        _getProducts();
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('Reset'),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final minText = _minPriceController.text.trim();
+                        final maxText = _maxPriceController.text.trim();
+
+                        setState(() {
+                          _minPrice = minText.isNotEmpty ? int.tryParse(minText) : null;
+                          _maxPrice = maxText.isNotEmpty ? int.tryParse(maxText) : null;
+                          _currentPage = 1;
+                          _products.clear();
+                        });
+                        Navigator.pop(context);
+                        _getProducts();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1A1A2E),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Terapkan',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildProductGrid() {
+    return GridView.builder(
+      controller: _scrollController,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 16.0,
+        mainAxisSpacing: 16.0,
+        childAspectRatio: 0.7,
+      ),
+      itemCount: _products.length + (_isLoadingMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index == _products.length) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        final product = _products[index];
+        return InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ProductDetailPage(productId: product.id),
+              ),
+            );
+          },
+          child: _buildProductCard(product),
+        );
+      },
     );
   }
 
@@ -228,47 +501,71 @@ class _ProductPageState extends State<ProductPage> {
     );
   }
 
+  Future<void> _getCategories() async {
+    debugPrint('=== _getCategories START ===');
+    setState(() {
+      _isLoadingCategories = true;
+    });
 
-  getProducts() async {
+    try {
+      debugPrint('Calling CategoryViewmodel().getCategories()...');
+      final value = await CategoryViewmodel().getCategories();
+      debugPrint('Categories API response code: ${value.code}');
+      debugPrint('Categories API response data: ${value.data}');
+
+      if (value.code == 200 && value.data != null) {
+        final List<dynamic> data = value.data;
+        setState(() {
+          _categories = data.map((e) => CategoryModel.fromJson(e)).toList();
+          _isLoadingCategories = false;
+        });
+        debugPrint('Categories loaded: ${_categories.length}');
+      } else {
+        debugPrint('Categories failed: ${value.message}');
+        setState(() {
+          _isLoadingCategories = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Categories error: $e');
+      setState(() {
+        _isLoadingCategories = false;
+      });
+    }
+  }
+
+  Future<void> _getProducts() async {
     setState(() {
       _isInitialLoading = true;
     });
 
     try {
-      await ProductViewmodel().products(page: 1).then((value) {
-        print('Full Response Code: ${value.code}'); // Debug
-        print('Full Response Data Type: ${value.data.runtimeType}'); // Debug
+      final value = await ProductViewmodel().products(
+        page: 1,
+        keyword: _searchKeyword.isNotEmpty ? _searchKeyword : null,
+        categoryId: _selectedCategoryId,
+        minPrice: _minPrice,
+        maxPrice: _maxPrice,
+      );
 
-        if (value.code == 200) {
-          // value.data sudah berisi object pagination dari Laravel
-          final responseData = value.data;
-          print('Response Data Keys: ${responseData.keys}'); // Debug
-          print('Current Page: ${responseData['current_page']}'); // Debug
-          print('Last Page: ${responseData['last_page']}'); // Debug
-          print('Products Count: ${(responseData['data'] as List).length}'); // Debug
+      if (value.code == 200) {
+        final responseData = value.data;
+        final productList = ProductListResponse.fromJson(responseData);
 
-          final productList = ProductListResponse.fromJson(responseData);
-          print('Products loaded: ${productList.products.length}'); // Debug
-
-          setState(() {
-            _products = productList.products;
-            _currentPage = productList.currentPage;
-            _lastPage = productList.lastPage;
-            _isInitialLoading = false;
-          });
-          print('State updated - isLoading: $_isInitialLoading'); // Debug
-        } else {
-          print('Response code not 200: ${value.code}'); // Debug
-          setState(() {
-            _isInitialLoading = false;
-          });
-          if (!mounted) return;
-          showToast(context: context, msg: value.message);
-        }
-      });
-    } catch (e, stackTrace) {
-      print('Error loading products: $e'); // Debug
-      print('Stack trace: $stackTrace'); // Debug
+        setState(() {
+          _products = productList.products;
+          _currentPage = productList.currentPage;
+          _lastPage = productList.lastPage;
+          _isInitialLoading = false;
+        });
+      } else {
+        setState(() {
+          _isInitialLoading = false;
+        });
+        if (!mounted) return;
+        showToast(context: context, msg: value.message);
+      }
+    } catch (e) {
       setState(() {
         _isInitialLoading = false;
       });
@@ -277,7 +574,7 @@ class _ProductPageState extends State<ProductPage> {
     }
   }
 
-  _loadMoreProducts() async {
+  Future<void> _loadMoreProducts() async {
     if (_isLoadingMore || _currentPage >= _lastPage) return;
 
     setState(() {
@@ -286,7 +583,15 @@ class _ProductPageState extends State<ProductPage> {
 
     final nextPage = _currentPage + 1;
 
-    await ProductViewmodel().products(page: nextPage).then((value) {
+    try {
+      final value = await ProductViewmodel().products(
+        page: nextPage,
+        keyword: _searchKeyword.isNotEmpty ? _searchKeyword : null,
+        categoryId: _selectedCategoryId,
+        minPrice: _minPrice,
+        maxPrice: _maxPrice,
+      );
+
       if (value.code == 200) {
         final responseData = value.data;
         final productList = ProductListResponse.fromJson(responseData);
@@ -303,7 +608,10 @@ class _ProductPageState extends State<ProductPage> {
         if (!mounted) return;
         showToast(context: context, msg: value.message);
       }
-    });
+    } catch (e) {
+      setState(() {
+        _isLoadingMore = false;
+      });
+    }
   }
-
 }
