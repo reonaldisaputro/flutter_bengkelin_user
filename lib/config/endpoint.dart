@@ -22,6 +22,9 @@ class Endpoint {
   static const String bengkelUrl = '/api/bengkel';
   static const String bengkelNearbyUrl = '/api/bengkel/nearby';
 
+  // specialist
+  static const String specialistUrl = '/api/specialists';
+
   //cart
   static const String cartUrl = '/api/cart';
 

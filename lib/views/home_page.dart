@@ -1,5 +1,6 @@
 // lib/pages/home_page.dart
 
+import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 
@@ -7,8 +8,10 @@ import 'package:flutter_bengkelin_user/config/app_color.dart';
 import 'package:flutter_bengkelin_user/config/pref.dart';
 import 'package:flutter_bengkelin_user/model/bengkel_model.dart';
 import 'package:flutter_bengkelin_user/model/product_model.dart';
+import 'package:flutter_bengkelin_user/model/specialist_model.dart';
 import 'package:flutter_bengkelin_user/viewmodel/bengkel_viewmodel.dart';
 import 'package:flutter_bengkelin_user/viewmodel/product_viewmodel.dart';
+import 'package:flutter_bengkelin_user/viewmodel/specialist_viewmodel.dart';
 import 'package:flutter_bengkelin_user/views/bengkel_detail_page.dart';
 import 'package:flutter_bengkelin_user/views/booking_form_page.dart';
 import 'package:flutter_bengkelin_user/views/cart_page.dart';
@@ -49,21 +52,43 @@ class _HomePageState extends State<HomePage> {
   List<BengkelModel> _bengkelNearby = [];
   String? _nearbyErrorMessage;
 
+  // Specialist filter
+  List<SpecialistModel> _specialists = [];
+  int? _selectedSpecialistId;
+  String _searchKeyword = '';
+  Timer? _debounce;
+  bool _isBengkelLoading = true;
+
   @override
   void initState() {
     super.initState();
     getUserProfile();
     getProducts();
     getBengkelNearby();
+    _getSpecialists();
     getBengkel();
-    getUserProfile();
-
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      final query = _searchController.text.trim();
+      if (query.length >= 3 || query.isEmpty) {
+        setState(() {
+          _searchKeyword = query.length >= 3 ? query : '';
+        });
+        getBengkel();
+      }
+    });
   }
 
   @override
@@ -202,7 +227,7 @@ class _HomePageState extends State<HomePage> {
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
-                  hintText: 'Search by service name or product',
+                  hintText: 'Cari bengkel (min 3 karakter)',
                   hintStyle: TextStyle(color: Colors.grey[500]),
                   prefixIcon: const Icon(Icons.search, color: Colors.grey),
                   fillColor: Colors.white,
@@ -361,8 +386,73 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
+            const SizedBox(height: 10),
+            // Specialist Filter
+            SizedBox(
+              height: 40,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                itemCount: _specialists.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: FilterChip(
+                        label: const Text('Semua'),
+                        selected: _selectedSpecialistId == null,
+                        onSelected: (selected) {
+                          if (selected) {
+                            setState(() {
+                              _selectedSpecialistId = null;
+                            });
+                            getBengkel();
+                          }
+                        },
+                        selectedColor: const Color(0xFF4A6B6B),
+                        labelStyle: TextStyle(
+                          color: _selectedSpecialistId == null
+                              ? Colors.white
+                              : Colors.black,
+                        ),
+                        backgroundColor: Colors.white,
+                      ),
+                    );
+                  }
+
+                  final specialist = _specialists[index - 1];
+                  final isSelected = _selectedSpecialistId == specialist.id;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: FilterChip(
+                      label: Text(specialist.name),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          _selectedSpecialistId = selected ? specialist.id : null;
+                        });
+                        getBengkel();
+                      },
+                      selectedColor: const Color(0xFF4A6B6B),
+                      labelStyle: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black,
+                      ),
+                      backgroundColor: Colors.white,
+                    ),
+                  );
+                },
+              ),
+            ),
             const SizedBox(height: 15),
-            ListView.builder(
+            _isBengkelLoading
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                : ListView.builder(
               physics: const NeverScrollableScrollPhysics(),
               shrinkWrap: true,
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -477,14 +567,40 @@ class _HomePageState extends State<HomePage> {
   }
 
   List<BengkelModel> _bengkel = [];
+
+  Future<void> _getSpecialists() async {
+    try {
+      final value = await SpecialistViewmodel().getSpecialists();
+      if (value.code == 200 || value.success == true) {
+        final List<dynamic> data = value.data;
+        setState(() {
+          _specialists = data.map((e) => SpecialistModel.fromJson(e)).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading specialists: $e');
+    }
+  }
+
   getBengkel() async {
-    await BengkelViewmodel().listBengkel().then((value) {
+    setState(() {
+      _isBengkelLoading = true;
+    });
+
+    await BengkelViewmodel().listBengkel(
+      keyword: _searchKeyword.isNotEmpty ? _searchKeyword : null,
+      specialistId: _selectedSpecialistId,
+    ).then((value) {
       if (value.code == 200) {
         UnmodifiableListView listData = UnmodifiableListView(value.data);
         setState(() {
           _bengkel = listData.map((e) => BengkelModel.fromJson(e)).toList();
+          _isBengkelLoading = false;
         });
       } else {
+        setState(() {
+          _isBengkelLoading = false;
+        });
         if (!mounted) return;
         showToast(context: context, msg: value.message);
       }

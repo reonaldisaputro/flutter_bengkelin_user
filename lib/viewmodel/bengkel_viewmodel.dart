@@ -5,9 +5,26 @@ import '../config/network.dart';
 
 class BengkelViewmodel {
 
-  Future<Resp> listBengkel() async {
-    var resp = await Network.getApi(
-        Endpoint.listBengkelUrl);
+  Future<Resp> listBengkel({
+    String? keyword,
+    int? specialistId,
+  }) async {
+    String url = Endpoint.listBengkelUrl;
+    List<String> params = [];
+
+    if (keyword != null && keyword.isNotEmpty) {
+      params.add("keyword=$keyword");
+    }
+
+    if (specialistId != null) {
+      params.add("specialist_id=$specialistId");
+    }
+
+    if (params.isNotEmpty) {
+      url += "?${params.join("&")}";
+    }
+
+    var resp = await Network.getApi(url);
     Resp data = Resp.fromJson(resp);
     return data;
   }
