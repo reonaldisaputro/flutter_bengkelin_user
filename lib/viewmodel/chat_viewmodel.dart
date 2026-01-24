@@ -14,6 +14,9 @@ class ChatViewmodel {
     String? message,
     String? payload,
     String? contextId,
+    double? latitude,
+    double? longitude,
+    double? radius,
   }) async {
     final String? token = await Session().getUserToken();
     if (token == null) {
@@ -30,6 +33,9 @@ class ChatViewmodel {
       if (message != null && message.trim().isNotEmpty) 'message': message.trim(),
       if (payload != null && payload.trim().isNotEmpty) 'payload': payload.trim(),
       if (contextId != null && contextId.trim().isNotEmpty) 'context_id': contextId.trim(),
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (radius != null) 'radius': radius,
     };
 
     debugPrint("token $token");

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../viewmodel/chat_viewmodel.dart';
 import 'booking_detail_page.dart';
+import '../widget/custom_toast.dart';
 
 class ChatAssistantPage extends StatefulWidget {
   const ChatAssistantPage({super.key});
@@ -34,6 +36,39 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
     Future.microtask(() => _send(payload: 'menu'));
   }
 
+  /// Get current GPS location (like in home_page.dart)
+  Future<Position?> _getCurrentPosition() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) showToast(context: context, msg: "Layanan lokasi dimatikan.");
+      return null;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (mounted) showToast(context: context, msg: "Izin lokasi ditolak.");
+        return null;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      if (mounted) {
+        showToast(
+          context: context,
+          msg: "Izin lokasi ditolak permanen, mohon aktifkan di pengaturan.",
+        );
+      }
+      return null;
+    }
+
+    return await Geolocator.getCurrentPosition();
+  }
+
   Future<void> _send({String? message, String? payload}) async {
     setState(() {
       _sending = true;
@@ -45,10 +80,32 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
       _jumpToBottom();
     }
 
+    // Special handling for "Bengkel Terdekat" - get GPS location
+    double? latitude;
+    double? longitude;
+    const double radius = 10; // Default radius 10km
+
+    if (payload == 'nearby_prompt') {
+      final position = await _getCurrentPosition();
+      if (position != null) {
+        latitude = position.latitude;
+        longitude = position.longitude;
+      } else {
+        // Location permission denied or service disabled
+        setState(() {
+          _sending = false;
+        });
+        return;
+      }
+    }
+
     final resp = await _vm.send(
       message: message,
       payload: payload,
       contextId: _contextId,
+      latitude: latitude,
+      longitude: longitude,
+      radius: latitude != null ? radius : null,
     );
 
     if (!mounted) return;
