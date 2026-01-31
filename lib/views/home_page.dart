@@ -52,6 +52,10 @@ class _HomePageState extends State<HomePage> {
   List<BengkelModel> _bengkelNearby = [];
   String? _nearbyErrorMessage;
 
+  // Radius filter for nearby bengkel
+  final List<int> _radiusOptions = [5, 10, 20, 50];
+  int _selectedRadius = 10;
+
   // Specialist filter
   List<SpecialistModel> _specialists = [];
   int? _selectedSpecialistId;
@@ -132,13 +136,18 @@ class _HomePageState extends State<HomePage> {
         currentIndex: _selectedIndex,
         selectedItemColor: const Color(0xFF4A6B6B),
         unselectedItemColor: Colors.grey,
-        onTap: (index) async { // Tambahkan 'async' di sini
-          if (index == 3) { // Index 3 adalah Profile
+        onTap: (index) async {
+          // Tambahkan 'async' di sini
+          if (index == 3) {
+            // Index 3 adalah Profile
             String? userToken = await Session().getUserToken();
             if (userToken == null) {
               // Belum login, navigasi ke LoginPage
               if (!mounted) return;
-              Navigator.push(context, MaterialPageRoute(builder: (context) => LoginPage()));
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => LoginPage()),
+              );
               return; // Penting: Jangan ubah _selectedIndex
             }
           }
@@ -205,15 +214,26 @@ class _HomePageState extends State<HomePage> {
                     // ),
                     // const Spacer(),
                     IconButton(
-                      icon: const Icon(Icons.shopping_cart_outlined, color: Colors.black),
+                      icon: const Icon(
+                        Icons.shopping_cart_outlined,
+                        color: Colors.black,
+                      ),
                       onPressed: () async {
                         String? userToken = await Session().getUserToken();
-                        if (userToken == null){
+                        if (userToken == null) {
                           if (!mounted) return;
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => LoginPage(),));
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => LoginPage(),
+                            ),
+                          );
                         } else {
                           if (!mounted) return;
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => CartPage(),),);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => CartPage()),
+                          );
                         }
                       },
                     ),
@@ -253,10 +273,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             SizedBox(height: 15),
-            SizedBox(
-              height: 180,
-              child: _buildNearbyContent(),
-            ),
+            SizedBox(height: 180, child: _buildNearbyContent()),
             const SizedBox(height: 25),
             // Padding(
             //   padding: const EdgeInsets.only(left: 16.0),
@@ -430,7 +447,9 @@ class _HomePageState extends State<HomePage> {
                       selected: isSelected,
                       onSelected: (selected) {
                         setState(() {
-                          _selectedSpecialistId = selected ? specialist.id : null;
+                          _selectedSpecialistId = selected
+                              ? specialist.id
+                              : null;
                         });
                         getBengkel();
                       },
@@ -453,95 +472,120 @@ class _HomePageState extends State<HomePage> {
                     ),
                   )
                 : ListView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              itemCount: _bengkel.length,
-              itemBuilder: (context, index) {
-                final bengkel = _bengkel[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 15),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(15),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.network(
-                            '${dotenv.env["IMAGE_BASE_URL"]}/${bengkel.image}',
-                            height: 80,
-                            width: 80,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                width: 80,
-                                height: 80,
-                                color: AppColor.colorGrey,
-                                child: Icon(Icons.image_not_supported, color: Colors.white),
-                              );
-                            },
-                          ),
+                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    itemCount: _bengkel.length,
+                    itemBuilder: (context, index) {
+                      final bengkel = _bengkel[index];
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 15),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Row(
                             children: [
-                              Text(
-                                bengkel.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.network(
+                                  '${dotenv.env["IMAGE_BASE_URL"]}/${bengkel.image}',
+                                  height: 80,
+                                  width: 80,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      width: 80,
+                                      height: 80,
+                                      color: AppColor.colorGrey,
+                                      child: Icon(
+                                        Icons.image_not_supported,
+                                        color: Colors.white,
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
-                              const SizedBox(height: 5),
-                              Row(
-                                children: [
-                                  const Icon(Icons.location_on, size: 16, color: Colors.grey),
-                                  const SizedBox(width: 5),
-                                  Expanded(
-                                    child: Text(
-                                      bengkel.kelurahan?.name ?? '-',
-                                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                                      overflow: TextOverflow.ellipsis,
+                              const SizedBox(width: 15),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      bengkel.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
                                     ),
+                                    const SizedBox(height: 5),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.location_on,
+                                          size: 16,
+                                          color: Colors.grey,
+                                        ),
+                                        const SizedBox(width: 5),
+                                        Expanded(
+                                          child: Text(
+                                            bengkel.kelurahan?.name ?? '-',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey[600],
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => BengkelDetailPage(
+                                        bengkelId: bengkel.id,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF4A6B6B),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 10,
                                   ),
-                                ],
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Detail',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
                         ),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => BengkelDetailPage(bengkelId: bengkel.id),));
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF4A6B6B),
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          child: const Text(
-                            'Detail',
-                            style: TextStyle(color: Colors.white, fontSize: 14),
-                          ),
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
             const SizedBox(height: 30),
           ],
         ),
@@ -587,24 +631,26 @@ class _HomePageState extends State<HomePage> {
       _isBengkelLoading = true;
     });
 
-    await BengkelViewmodel().listBengkel(
-      keyword: _searchKeyword.isNotEmpty ? _searchKeyword : null,
-      specialistId: _selectedSpecialistId,
-    ).then((value) {
-      if (value.code == 200) {
-        UnmodifiableListView listData = UnmodifiableListView(value.data);
-        setState(() {
-          _bengkel = listData.map((e) => BengkelModel.fromJson(e)).toList();
-          _isBengkelLoading = false;
+    await BengkelViewmodel()
+        .listBengkel(
+          keyword: _searchKeyword.isNotEmpty ? _searchKeyword : null,
+          specialistId: _selectedSpecialistId,
+        )
+        .then((value) {
+          if (value.code == 200) {
+            UnmodifiableListView listData = UnmodifiableListView(value.data);
+            setState(() {
+              _bengkel = listData.map((e) => BengkelModel.fromJson(e)).toList();
+              _isBengkelLoading = false;
+            });
+          } else {
+            setState(() {
+              _isBengkelLoading = false;
+            });
+            if (!mounted) return;
+            showToast(context: context, msg: value.message);
+          }
         });
-      } else {
-        setState(() {
-          _isBengkelLoading = false;
-        });
-        if (!mounted) return;
-        showToast(context: context, msg: value.message);
-      }
-    });
   }
 
   Future<Position?> _getCurrentPosition() async {
@@ -613,7 +659,8 @@ class _HomePageState extends State<HomePage> {
 
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      if(mounted) showToast(context: context, msg: "Layanan lokasi dimatikan.");
+      if (mounted)
+        showToast(context: context, msg: "Layanan lokasi dimatikan.");
       return null;
     }
 
@@ -621,13 +668,17 @@ class _HomePageState extends State<HomePage> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        if(mounted) showToast(context: context, msg: "Izin lokasi ditolak.");
+        if (mounted) showToast(context: context, msg: "Izin lokasi ditolak.");
         return null;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      if(mounted) showToast(context: context, msg: "Izin lokasi ditolak permanen, mohon aktifkan di pengaturan.");
+      if (mounted)
+        showToast(
+          context: context,
+          msg: "Izin lokasi ditolak permanen, mohon aktifkan di pengaturan.",
+        );
       return null;
     }
 
@@ -647,7 +698,7 @@ class _HomePageState extends State<HomePage> {
         final value = await BengkelViewmodel().bengkelNearby(
           lat: position.latitude,
           long: position.longitude,
-          radius: 10,
+          radius: _selectedRadius,
         );
 
         if (value.code == 200) {
@@ -663,8 +714,9 @@ class _HomePageState extends State<HomePage> {
           // ==========================================================
 
           setState(() {
-            _bengkelNearby =
-                listData.map((e) => BengkelModel.fromJson(e)).toList();
+            _bengkelNearby = listData
+                .map((e) => BengkelModel.fromJson(e))
+                .toList();
             if (_bengkelNearby.isEmpty) {
               _nearbyErrorMessage = "Tidak ada bengkel terdekat ditemukan.";
             }
@@ -700,17 +752,14 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
-      final respValue = await ProfileViewmodel()
-          .getUserProfile();
+      final respValue = await ProfileViewmodel().getUserProfile();
 
       if (!mounted) return;
 
       if (respValue.code == 200 && respValue.status == 'success') {
         if (respValue.data != null) {
           setState(() {
-            _users = UserModel.fromJson(
-              respValue.data,
-            );
+            _users = UserModel.fromJson(respValue.data);
           });
           debugPrint('User profile loaded successfully: ${_users?.name}');
         } else {
@@ -768,7 +817,12 @@ class _HomePageState extends State<HomePage> {
         // UI Card Anda sudah benar, tidak perlu diubah.
         return GestureDetector(
           onTap: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => BengkelDetailPage(bengkelId: bengkel.id)));
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BengkelDetailPage(bengkelId: bengkel.id),
+              ),
+            );
           },
           child: Container(
             width: 150,
@@ -788,7 +842,9 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(15),
+                  ),
                   child: Image.network(
                     '${dotenv.env["IMAGE_BASE_URL"]}/${bengkel.image}',
                     height: 100,
@@ -810,7 +866,10 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Text(
                         bengkel.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -831,6 +890,4 @@ class _HomePageState extends State<HomePage> {
       },
     );
   }
-
-
 }

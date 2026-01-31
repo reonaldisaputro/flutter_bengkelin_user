@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bengkelin_user/viewmodel/auth_viewmodel.dart';
 import 'package:flutter_bengkelin_user/views/home_page.dart';
 import 'package:flutter_bengkelin_user/views/register_page.dart';
+import 'package:flutter_bengkelin_user/views/forgot_password_send_otp_page.dart';
 
 import '../../config/app_color.dart';
 import '../../config/pref.dart';
@@ -16,13 +17,14 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   bool _isPasswordVisible = false, isLoading = false;
-  final TextEditingController _emailController = TextEditingController(), _passwordController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController(),
+      _passwordController = TextEditingController();
 
   final _formKey = GlobalKey<FormState>();
 
   RegExp get emailRegex => RegExp(
-      r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+");
-
+    r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -109,36 +111,61 @@ class _LoginPageState extends State<LoginPage> {
                 width: double.infinity,
                 child: isLoading
                     ? const Center(
-                    child: CircularProgressIndicator(
-                      color: Colors.green,
-                      strokeWidth: 2,
-                    ))
+                        child: CircularProgressIndicator(
+                          color: Colors.green,
+                          strokeWidth: 2,
+                        ),
+                      )
                     : ElevatedButton(
+                        onPressed: () {
+                          if (isLoading == false &&
+                              _formKey.currentState!.validate()) {
+                            setState(() {
+                              isLoading = true;
+                            });
+                            login();
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(
+                            0xFF4A6B6B,
+                          ), // Greenish button color
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0, // No shadow
+                        ),
+                        child: const Text(
+                          'Masuk sekarang',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+              ),
+              const SizedBox(height: 15),
+
+              // Forgot Password Button
+              Center(
+                child: TextButton(
                   onPressed: () {
-                    if (isLoading == false &&
-                        _formKey.currentState!.validate()) {
-                      setState(() {
-                        isLoading = true;
-                      });
-                      login();
-                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ForgotPasswordSendOtpPage(),
+                      ),
+                    );
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(
-                      0xFF4A6B6B,
-                    ), // Greenish button color
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0, // No shadow
-                  ),
                   child: const Text(
-                    'Masuk sekarang',
+                    'Lupa Kata Sandi?',
                     style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Color(0xFF4A6B6B),
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
                     ),
                   ),
                 ),
@@ -198,22 +225,23 @@ class _LoginPageState extends State<LoginPage> {
     AuthViewmodel()
         .login(email: _emailController.text, password: _passwordController.text)
         .then((value) async {
-      if (value.code == 200) {
-        setState(() {
-          isLoading = false;
+          if (value.code == 200) {
+            setState(() {
+              isLoading = false;
+            });
+            await Session().setUserToken(value.data["access_token"]);
+            if (!mounted) return;
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const HomePage()),
+              (Route<dynamic> route) => false,
+            );
+          } else {
+            if (!mounted) return;
+            setState(() {
+              isLoading = false;
+            });
+            showToast(context: context, msg: value.message.toString());
+          }
         });
-        await Session().setUserToken(value.data["access_token"]);
-        if (!mounted) return;
-        Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const HomePage()),
-                (Route<dynamic> route) => false);
-      } else {
-        if (!mounted) return;
-        setState(() {
-          isLoading = false;
-        });
-        showToast(context: context, msg: value.message.toString());
-      }
-    });
   }
 }
