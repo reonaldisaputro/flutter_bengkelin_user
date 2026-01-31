@@ -272,7 +272,85 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-            SizedBox(height: 15),
+            const SizedBox(height: 10),
+            // Radius selector chips
+            Container(
+              height: 45,
+              padding: const EdgeInsets.only(left: 16.0),
+              child: Row(
+                children: [
+                  Icon(Icons.location_on, size: 20, color: Colors.grey[600]),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Radius:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _radiusOptions.length,
+                      itemBuilder: (context, index) {
+                        final radius = _radiusOptions[index];
+                        final isSelected = _selectedRadius == radius;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: FilterChip(
+                            label: Text('$radius km'),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              if (selected && _selectedRadius != radius) {
+                                setState(() {
+                                  _selectedRadius = radius;
+                                });
+                                // Show a quick feedback toast
+                                showToast(
+                                  context: context,
+                                  msg:
+                                      'Mencari bengkel dalam radius $radius km...',
+                                  duration: 2,
+                                );
+                                getBengkelNearby(); // Refresh data with new radius
+                              }
+                            },
+                            backgroundColor: Colors.grey[100],
+                            selectedColor: const Color(
+                              0xFF4A6B6B,
+                            ).withOpacity(0.2),
+                            checkmarkColor: const Color(0xFF4A6B6B),
+                            labelStyle: TextStyle(
+                              color: isSelected
+                                  ? const Color(0xFF4A6B6B)
+                                  : Colors.grey[600],
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              fontSize: 13,
+                            ),
+                            elevation: isSelected ? 2 : 0,
+                            pressElevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              side: BorderSide(
+                                color: isSelected
+                                    ? const Color(0xFF4A6B6B)
+                                    : Colors.grey[300]!,
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
             SizedBox(height: 180, child: _buildNearbyContent()),
             const SizedBox(height: 25),
             // Padding(
