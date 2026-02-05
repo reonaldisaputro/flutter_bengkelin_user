@@ -201,6 +201,56 @@ class _BengkelDetailPageState extends State<BengkelDetailPage> {
 
               const SizedBox(height: 24),
 
+              // Merk Mobil yang Dilayani
+              Text(
+                "Merk Mobil yang Dilayani",
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              bengkel.merkMobils.isEmpty
+                  ? const Text("Belum ada merk mobil yang terdaftar.")
+                  : Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: bengkel.merkMobils.map((merk) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.blue.shade200,
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.directions_car,
+                                size: 18,
+                                color: Colors.blue.shade700,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                merk.namaMerk,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.blue.shade900,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+
+              const SizedBox(height: 24),
+
               Text(
                 "Jadwal Buka",
                 style: Theme.of(context).textTheme.titleMedium,

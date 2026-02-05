@@ -2,6 +2,7 @@ import 'package:flutter_bengkelin_user/model/specialist_model.dart';
 
 import 'kecamatan_model.dart';
 import 'kelurahan_model.dart';
+import 'merk_mobil_model.dart';
 
 class BengkelModel {
   final int id;
@@ -23,6 +24,7 @@ class BengkelModel {
   final KelurahanModel? kelurahan;
   final List<Product> products;
   final List<JadwalModel> jadwals;
+  final List<MerkMobilModel> merkMobils;
 
   BengkelModel({
     required this.id,
@@ -44,6 +46,7 @@ class BengkelModel {
     this.kelurahan,
     required this.products,
     required this.jadwals,
+    required this.merkMobils,
   });
 
   factory BengkelModel.fromJson(Map<String, dynamic> json) {
@@ -98,6 +101,11 @@ class BengkelModel {
               ?.map((e) => JadwalModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      merkMobils:
+          (json['merk_mobils'] as List<dynamic>?)
+              ?.map((e) => MerkMobilModel.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 
@@ -122,6 +130,7 @@ class BengkelModel {
       'kelurahan': kelurahan?.toJson(),
       'products': products.map((e) => e.toJson()).toList(),
       'jadwals': jadwals.map((e) => e.toJson()).toList(),
+      'merk_mobils': merkMobils.map((e) => e.toJson()).toList(),
     };
   }
 }
