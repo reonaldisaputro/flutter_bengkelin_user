@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:flutter_bengkelin_user/config/app_color.dart';
 import 'package:flutter_bengkelin_user/config/pref.dart';
 import 'package:flutter_bengkelin_user/model/bengkel_model.dart';
+import 'package:flutter_bengkelin_user/model/merk_mobil_model.dart';
 import 'package:flutter_bengkelin_user/model/product_model.dart';
 import 'package:flutter_bengkelin_user/model/specialist_model.dart';
 import 'package:flutter_bengkelin_user/viewmodel/bengkel_viewmodel.dart';
@@ -63,6 +64,10 @@ class _HomePageState extends State<HomePage> {
   Timer? _debounce;
   bool _isBengkelLoading = true;
 
+  // Merk Mobil filter
+  List<MerkMobilModel> _merkMobils = [];
+  int? _selectedMerkMobilId;
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +75,7 @@ class _HomePageState extends State<HomePage> {
     getProducts();
     getBengkelNearby();
     _getSpecialists();
+    _getMerkMobils();
     getBengkel();
     _searchController.addListener(_onSearchChanged);
   }
@@ -541,6 +547,81 @@ class _HomePageState extends State<HomePage> {
                 },
               ),
             ),
+            const SizedBox(height: 10),
+            // Merk Mobil Filter (Dropdown)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<int?>(
+                    isExpanded: true,
+                    value: _selectedMerkMobilId,
+                    hint: Row(
+                      children: [
+                        Icon(
+                          Icons.directions_car,
+                          color: Colors.grey[600],
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Filter berdasarkan Merk Mobil',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                    icon: Icon(Icons.arrow_drop_down, color: Colors.grey[700]),
+                    items: [
+                      DropdownMenuItem<int?>(
+                        value: null,
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.clear_all,
+                              color: Colors.grey[600],
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            const Text('Semua Merk'),
+                          ],
+                        ),
+                      ),
+                      ..._merkMobils.map((merk) {
+                        return DropdownMenuItem<int?>(
+                          value: merk.id,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.directions_car,
+                                color: const Color(0xFF4A6B6B),
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(merk.namaMerk),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedMerkMobilId = value;
+                      });
+                      getBengkel();
+                    },
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(height: 15),
             _isBengkelLoading
                 ? const Center(
@@ -704,6 +785,20 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _getMerkMobils() async {
+    try {
+      final value = await BengkelViewmodel().getMerkMobil();
+      if (value.success == true) {
+        final List<dynamic> data = value.data;
+        setState(() {
+          _merkMobils = data.map((e) => MerkMobilModel.fromJson(e)).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading merk mobil: $e');
+    }
+  }
+
   getBengkel() async {
     setState(() {
       _isBengkelLoading = true;
@@ -713,6 +808,7 @@ class _HomePageState extends State<HomePage> {
         .listBengkel(
           keyword: _searchKeyword.isNotEmpty ? _searchKeyword : null,
           specialistId: _selectedSpecialistId,
+          merkMobilId: _selectedMerkMobilId,
         )
         .then((value) {
           if (value.code == 200) {

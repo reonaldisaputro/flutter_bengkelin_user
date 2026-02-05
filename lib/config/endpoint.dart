@@ -31,6 +31,9 @@ class Endpoint {
   // specialist
   static const String specialistUrl = '/api/specialists';
 
+  // merk mobil
+  static const String merkMobilUrl = '/api/merk-mobil';
+
   //cart
   static const String cartUrl = '/api/cart';
 
