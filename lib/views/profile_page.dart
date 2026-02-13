@@ -180,10 +180,10 @@ class _ProfilePageState extends State<ProfilePage> {
                                       userName: _users!.name,
                                       userEmail: _users!.email,
                                       userPhoneNumber: _users!.phoneNumber,
-                                      userAddress: _users!
-                                          .alamat, // Menggunakan 'alamat'
-                                      userPhotoUrl:
-                                          '', // Tidak ada URL dari backend, berikan string kosong
+                                      userAddress: _users!.alamat,
+                                      userPhotoUrl: '',
+                                      kecamatanId: _users!.kecamatanId,
+                                      kelurahanId: _users!.kelurahanId,
                                     ),
                                   ),
                                 );
@@ -252,10 +252,10 @@ class _ProfilePageState extends State<ProfilePage> {
                               userName: _users!.name,
                               userEmail: _users!.email,
                               userPhoneNumber: _users!.phoneNumber,
-                              userAddress:
-                                  _users!.alamat, // Menggunakan 'alamat'
-                              userPhotoUrl:
-                                  '', // Tidak ada URL dari backend, berikan string kosong
+                              userAddress: _users!.alamat,
+                              userPhotoUrl: '',
+                              kecamatanId: _users!.kecamatanId,
+                              kelurahanId: _users!.kelurahanId,
                             ),
                           ),
                         );

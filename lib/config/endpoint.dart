@@ -16,6 +16,7 @@ class Endpoint {
 
   // user
   static const String userProfileUrl = '/api/user';
+  static const String updateProfileUrl = '/api/profile';
 
   //product
   static const String productUrl = '/api/products';

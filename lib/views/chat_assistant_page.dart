@@ -3,7 +3,10 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../viewmodel/chat_viewmodel.dart';
+import 'bengkel_detail_page.dart';
 import 'booking_detail_page.dart';
+import 'product_detail_page.dart';
+import 'transaction_detail_page.dart';
 import '../widget/custom_toast.dart';
 
 class ChatAssistantPage extends StatefulWidget {
@@ -43,7 +46,8 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
 
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      if (mounted) showToast(context: context, msg: "Layanan lokasi dimatikan.");
+      if (mounted)
+        showToast(context: context, msg: "Layanan lokasi dimatikan.");
       return null;
     }
 
@@ -80,18 +84,21 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
       _jumpToBottom();
     }
 
-    // Special handling for "Bengkel Terdekat" - get GPS location
+    // Auto-attach GPS for location-related payloads
     double? latitude;
     double? longitude;
     const double radius = 10; // Default radius 10km
 
-    if (payload == 'nearby_prompt') {
+    final needsLocation = payload == 'nearby_prompt' ||
+        payload == 'booking_bengkel' ||
+        payload == 'booking_list';
+
+    if (needsLocation) {
       final position = await _getCurrentPosition();
       if (position != null) {
         latitude = position.latitude;
         longitude = position.longitude;
       } else {
-        // Location permission denied or service disabled
         setState(() {
           _sending = false;
         });
@@ -124,11 +131,42 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
       }
       debugPrint("=========================");
 
+      // Auto-send GPS when backend asks for location (flow booking, step select_bengkel)
+      final flowMap = flow != null ? Map<String, dynamic>.from(flow) : null;
+      final isSelectBengkelStep = flowMap != null &&
+          flowMap['active'] == true &&
+          flowMap['name'] == 'booking' &&
+          flowMap['step'] == 'select_bengkel';
+
+      // Check if backend is asking user to send location (not a result/error)
+      final hasLocationPrompt = apiMsgs.any((msg) =>
+          msg['text']?.toString().contains('Kirim lokasi Anda') == true);
+
+      if (isSelectBengkelStep && hasLocationPrompt) {
+        // Update context_id before auto-sending
+        _contextId = (d['context_id'] ?? _contextId)?.toString();
+
+        // Auto-get GPS and send location
+        final position = await _getCurrentPosition();
+        if (position != null && mounted) {
+          // Don't show the "kirim lokasi" messages, send GPS automatically
+          setState(() {
+            _currentFlow = flowMap;
+          });
+          // Send as message in the format backend expects
+          _send(
+            message:
+                'bengkel terdekat ${position.latitude},${position.longitude}',
+          );
+          return;
+        }
+      }
+
       setState(() {
         _contextId = (d['context_id'] ?? _contextId)?.toString();
         _messages.addAll(apiMsgs.map((e) => Map<String, dynamic>.from(e)));
         _quickReplies = apiQR.map((e) => Map<String, dynamic>.from(e)).toList();
-        _currentFlow = flow != null ? Map<String, dynamic>.from(flow) : null;
+        _currentFlow = flowMap;
         _sending = false;
       });
       _jumpToBottom();
@@ -165,10 +203,7 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Asisten Bengkelin'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Asisten Bengkelin'), centerTitle: true),
       body: Column(
         children: [
           // Flow indicator
@@ -190,7 +225,10 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
                   return const _TypingBubble();
                 }
                 final m = _messages[i];
-                final type = (m['type'] ?? 'text').toString().toLowerCase().trim();
+                final type = (m['type'] ?? 'text')
+                    .toString()
+                    .toLowerCase()
+                    .trim();
 
                 // Debug: Log type untuk setiap message
                 debugPrint("Rendering message $i with type: '$type'");
@@ -201,9 +239,26 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
                   case 'text':
                     return _BotTextBubble(text: m['text']?.toString() ?? '');
                   case 'link':
+                    final linkUrl = m['url']?.toString() ?? '';
+                    // Check if it's a transaction detail link
+                    final txMatch = RegExp(r'profile-transaction/(\d+)')
+                        .firstMatch(linkUrl);
                     return _BotLinkBubble(
                       title: m['title']?.toString() ?? 'Link',
-                      url: m['url']?.toString() ?? '',
+                      url: linkUrl,
+                      onTap: txMatch != null
+                          ? () {
+                              final txId = int.parse(txMatch.group(1)!);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => TransactionDetailPage(
+                                    transactionId: txId,
+                                  ),
+                                ),
+                              );
+                            }
+                          : null,
                     );
                   case 'card':
                     return _BotCardBubble(
@@ -211,14 +266,18 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
                       subtitle: m['subtitle']?.toString(),
                       image: m['image']?.toString(),
                       actions: (m['actions'] as List? ?? const [])
-                          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+                          .map<Map<String, dynamic>>(
+                            (e) => Map<String, dynamic>.from(e),
+                          )
                           .toList(),
                       onPayload: _sending ? null : (p) => _send(payload: p),
                     );
                   case 'carousel':
                     return _BotCarouselBubble(
                       items: (m['items'] as List? ?? const [])
-                          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+                          .map<Map<String, dynamic>>(
+                            (e) => Map<String, dynamic>.from(e),
+                          )
                           .toList(),
                       onPayload: _sending ? null : (p) => _send(payload: p),
                     );
@@ -231,7 +290,9 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
                       stock: m['stock'] ?? 0,
                       image: m['image']?.toString(),
                       actions: (m['actions'] as List? ?? const [])
-                          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+                          .map<Map<String, dynamic>>(
+                            (e) => Map<String, dynamic>.from(e),
+                          )
                           .toList(),
                       onPayload: _sending ? null : (p) => _send(payload: p),
                     );
@@ -248,14 +309,17 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
                           : null,
                       status: m['status']?.toString() ?? '',
                       actions: (m['actions'] as List? ?? const [])
-                          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+                          .map<Map<String, dynamic>>(
+                            (e) => Map<String, dynamic>.from(e),
+                          )
                           .toList(),
                       onPayload: _sending ? null : (p) => _send(payload: p),
                       onNavigateToDetail: (bookingId) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => BookingDetailPage(bookingId: bookingId),
+                            builder: (_) =>
+                                BookingDetailPage(bookingId: bookingId),
                           ),
                         );
                       },
@@ -263,18 +327,25 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
                   case 'time_picker':
                     return _BotTimePickerBubble(
                       date: m['date']?.toString() ?? '',
-                      availableSlots: (m['available_slots'] as List? ?? const [])
-                          .map((e) => e.toString())
-                          .toList(),
+                      availableSlots:
+                          (m['available_slots'] as List? ?? const [])
+                              .map((e) => e.toString())
+                              .toList(),
                       bookedSlots: (m['booked_slots'] as List? ?? const [])
                           .map((e) => e.toString())
                           .toList(),
-                      onSelectTime: _sending ? null : (time) => _send(payload: 'select_time_$time'),
+                      onSelectTime: _sending
+                          ? null
+                          : (time) => _send(payload: 'select_time_$time'),
                     );
                   default:
-                    debugPrint("⚠️ Unknown message type: '$type' - displaying as raw text");
+                    debugPrint(
+                      "⚠️ Unknown message type: '$type' - displaying as raw text",
+                    );
                     debugPrint("Message content: $m");
-                    return _BotTextBubble(text: 'Tipe pesan tidak dikenal: $type');
+                    return _BotTextBubble(
+                      text: 'Tipe pesan tidak dikenal: $type',
+                    );
                 }
               },
             ),
@@ -286,7 +357,9 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
-                border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
+                border: Border(
+                  top: BorderSide(color: Theme.of(context).dividerColor),
+                ),
               ),
               alignment: Alignment.centerLeft,
               child: Wrap(
@@ -304,13 +377,13 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
                     onPressed: _sending
                         ? null
                         : () {
-                      // LOGIKA BARU: Kirim berdasarkan tipe
-                      if (type == 'message') {
-                        _send(message: payload);
-                      } else {
-                        _send(payload: payload);
-                      }
-                    },
+                            // LOGIKA BARU: Kirim berdasarkan tipe
+                            if (type == 'message') {
+                              _send(message: payload);
+                            } else {
+                              _send(payload: payload);
+                            }
+                          },
                   );
                 }).toList(),
               ),
@@ -332,8 +405,13 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
                         hintText: 'Tulis pesan… (mis. "status TRANS-435")',
                         filled: true,
                         fillColor: Colors.white,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                       ),
                       onSubmitted: (_) => _onSendPressed(),
                     ),
@@ -342,7 +420,11 @@ class _ChatAssistantPageState extends State<ChatAssistantPage> {
                   FilledButton.icon(
                     onPressed: _sending ? null : _onSendPressed,
                     icon: _sending
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Icon(Icons.send_rounded),
                     label: Text(_sending ? '...' : 'Kirim'),
                   ),
@@ -399,7 +481,9 @@ class _FlowIndicator extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: cs.primaryContainer,
-        border: Border(bottom: BorderSide(color: cs.outline.withValues(alpha: 0.2))),
+        border: Border(
+          bottom: BorderSide(color: cs.outline.withValues(alpha: 0.2)),
+        ),
       ),
       child: Row(
         children: [
@@ -454,7 +538,13 @@ class _UserBubble extends StatelessWidget {
             bottomLeft: Radius.circular(16),
             bottomRight: Radius.circular(16),
           ),
-          boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 12,
+              offset: Offset(0, 6),
+            ),
+          ],
         ),
         child: Text(text, style: TextStyle(color: cs.onPrimary)),
       ),
@@ -484,7 +574,13 @@ class _BotTextBubble extends StatelessWidget {
             bottomLeft: Radius.circular(16),
             bottomRight: Radius.circular(16),
           ),
-          boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 4))],
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A000000),
+              blurRadius: 8,
+              offset: Offset(0, 4),
+            ),
+          ],
         ),
         child: Text(text),
       ),
@@ -493,9 +589,10 @@ class _BotTextBubble extends StatelessWidget {
 }
 
 class _BotLinkBubble extends StatelessWidget {
-  const _BotLinkBubble({required this.title, required this.url});
+  const _BotLinkBubble({required this.title, required this.url, this.onTap});
   final String title;
   final String url;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -511,11 +608,19 @@ class _BotLinkBubble extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             side: BorderSide(color: cs.outlineVariant),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 6,
+          ),
           leading: const Icon(Icons.link_rounded),
           title: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
-          subtitle: Text(url, style: TextStyle(color: cs.primary), maxLines: 1, overflow: TextOverflow.ellipsis),
-          onTap: () async {
+          subtitle: Text(
+            url,
+            style: TextStyle(color: cs.primary),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          onTap: onTap ?? () async {
             final uri = Uri.parse(url);
             if (await canLaunchUrl(uri)) {
               await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -555,7 +660,13 @@ class _BotCardBubble extends StatelessWidget {
           color: cs.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: cs.outlineVariant),
-          boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 10, offset: Offset(0, 6))],
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0F000000),
+              blurRadius: 10,
+              offset: Offset(0, 6),
+            ),
+          ],
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -588,9 +699,11 @@ class _BotCardBubble extends StatelessWidget {
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: actions.map((a) => _buildActionButton(a, cs)).toList(),
-                    )
-                  ]
+                      children: actions
+                          .map<Widget>((a) => _buildActionButton(a, cs, context))
+                          .toList(),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -600,7 +713,7 @@ class _BotCardBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButton(Map<String, dynamic> action, ColorScheme cs) {
+  Widget _buildActionButton(Map<String, dynamic> action, ColorScheme cs, BuildContext context) {
     final label = action['label']?.toString() ?? 'Buka';
     final url = action['url']?.toString();
     final payload = action['payload']?.toString();
@@ -613,8 +726,46 @@ class _BotCardBubble extends StatelessWidget {
       );
     }
 
-    // Jika ada URL, buka di browser
+    // Jika ada URL, cek apakah bisa navigasi in-app
     if (url != null && url.isNotEmpty) {
+      // Bengkel detail
+      final bengkelMatch =
+          RegExp(r'detailbengkelpage/(\d+)').firstMatch(url);
+      if (bengkelMatch != null) {
+        final bengkelId = int.parse(bengkelMatch.group(1)!);
+        return OutlinedButton.icon(
+          icon: const Icon(Icons.store, size: 16),
+          label: Text(label),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BengkelDetailPage(bengkelId: bengkelId),
+              ),
+            );
+          },
+        );
+      }
+
+      // Product detail
+      final productMatch = RegExp(r'product/(\d+)').firstMatch(url);
+      if (productMatch != null) {
+        final productId = int.parse(productMatch.group(1)!);
+        return OutlinedButton.icon(
+          icon: const Icon(Icons.shopping_bag, size: 16),
+          label: Text(label),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ProductDetailPage(productId: productId),
+              ),
+            );
+          },
+        );
+      }
+
+      // Fallback: buka di browser
       return OutlinedButton.icon(
         icon: const Icon(Icons.open_in_new_rounded, size: 16),
         label: Text(label),
@@ -633,10 +784,7 @@ class _BotCardBubble extends StatelessWidget {
 
 /// Carousel - horizontal scrollable cards
 class _BotCarouselBubble extends StatelessWidget {
-  const _BotCarouselBubble({
-    required this.items,
-    this.onPayload,
-  });
+  const _BotCarouselBubble({required this.items, this.onPayload});
 
   final List<Map<String, dynamic>> items;
   final void Function(String payload)? onPayload;
@@ -660,7 +808,9 @@ class _BotCarouselBubble extends StatelessWidget {
               subtitle: item['subtitle']?.toString(),
               image: item['image']?.toString(),
               actions: (item['actions'] as List? ?? const [])
-                  .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+                  .map<Map<String, dynamic>>(
+                    (e) => Map<String, dynamic>.from(e),
+                  )
                   .toList(),
               onPayload: onPayload,
             ),
@@ -705,7 +855,13 @@ class _BotProductCardBubble extends StatelessWidget {
           color: cs.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: cs.outlineVariant),
-          boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 10, offset: Offset(0, 6))],
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0F000000),
+              blurRadius: 10,
+              offset: Offset(0, 6),
+            ),
+          ],
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -746,7 +902,10 @@ class _BotProductCardBubble extends StatelessWidget {
                       Expanded(
                         child: Text(
                           bengkel,
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -780,16 +939,41 @@ class _BotProductCardBubble extends StatelessWidget {
                           );
                         }
                         if (url != null && url.isNotEmpty) {
+                          // Check if it's a product detail URL
+                          final productMatch = RegExp(r'product/(\d+)')
+                              .firstMatch(url);
+                          if (productMatch != null) {
+                            final productId =
+                                int.parse(productMatch.group(1)!);
+                            return OutlinedButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ProductDetailPage(
+                                      productId: productId,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Text(label),
+                            );
+                          }
                           return OutlinedButton(
                             onPressed: () async {
                               try {
                                 final uri = Uri.parse(url);
-                                await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                await launchUrl(
+                                  uri,
+                                  mode: LaunchMode.externalApplication,
+                                );
                               } catch (e) {
                                 debugPrint('Error launching URL: $e');
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Tidak dapat membuka link')),
+                                    const SnackBar(
+                                      content: Text('Tidak dapat membuka link'),
+                                    ),
                                   );
                                 }
                               }
@@ -800,7 +984,7 @@ class _BotProductCardBubble extends StatelessWidget {
                         return const SizedBox.shrink();
                       }).toList(),
                     ),
-                  ]
+                  ],
                 ],
               ),
             ),
@@ -853,7 +1037,13 @@ class _BotBookingCardBubble extends StatelessWidget {
           color: cs.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: cs.outlineVariant),
-          boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 10, offset: Offset(0, 6))],
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0F000000),
+              blurRadius: 10,
+              offset: Offset(0, 6),
+            ),
+          ],
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -879,14 +1069,20 @@ class _BotBookingCardBubble extends StatelessWidget {
                               width: 48,
                               height: 48,
                               color: cs.primaryContainer,
-                              child: Icon(Icons.build, color: cs.onPrimaryContainer),
+                              child: Icon(
+                                Icons.build,
+                                color: cs.onPrimaryContainer,
+                              ),
                             ),
                           )
                         : Container(
                             width: 48,
                             height: 48,
                             color: cs.primaryContainer,
-                            child: Icon(Icons.build, color: cs.onPrimaryContainer),
+                            child: Icon(
+                              Icons.build,
+                              color: cs.onPrimaryContainer,
+                            ),
                           ),
                   ),
                   const SizedBox(width: 12),
@@ -902,12 +1098,18 @@ class _BotBookingCardBubble extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: cs.surface,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Text(status, style: const TextStyle(fontSize: 12)),
+                          child: Text(
+                            status,
+                            style: const TextStyle(fontSize: 12),
+                          ),
                         ),
                       ],
                     ),
@@ -925,23 +1127,36 @@ class _BotBookingCardBubble extends StatelessWidget {
                     children: [
                       Icon(Icons.calendar_today, size: 16, color: cs.primary),
                       const SizedBox(width: 8),
-                      Text(tanggal, style: const TextStyle(fontWeight: FontWeight.w500)),
+                      Text(
+                        tanggal,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
                       const SizedBox(width: 16),
                       Icon(Icons.access_time, size: 16, color: cs.primary),
                       const SizedBox(width: 4),
-                      Text(waktu, style: const TextStyle(fontWeight: FontWeight.w500)),
+                      Text(
+                        waktu,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
                     ],
                   ),
                   if (vehicle != null) ...[
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.two_wheeler, size: 16, color: Colors.grey[600]),
+                        Icon(
+                          Icons.two_wheeler,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             '$vehicleBrand $vehicleModel • $vehiclePlat',
-                            style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[700],
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -963,19 +1178,28 @@ class _BotBookingCardBubble extends StatelessWidget {
                           final isCancel = payload.contains('cancel');
                           return isCancel
                               ? OutlinedButton(
-                                  onPressed: onPayload != null ? () => onPayload!(payload) : null,
-                                  style: OutlinedButton.styleFrom(foregroundColor: cs.error),
+                                  onPressed: onPayload != null
+                                      ? () => onPayload!(payload)
+                                      : null,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: cs.error,
+                                  ),
                                   child: Text(label),
                                 )
                               : FilledButton.tonal(
-                                  onPressed: onPayload != null ? () => onPayload!(payload) : null,
+                                  onPressed: onPayload != null
+                                      ? () => onPayload!(payload)
+                                      : null,
                                   child: Text(label),
                                 );
                         }
                         if (url != null && url.isNotEmpty) {
                           // Check if URL is a booking detail URL
-                          final bookingMatch = RegExp(r'/booking/(\d+)').firstMatch(url);
-                          if (bookingMatch != null && onNavigateToDetail != null) {
+                          final bookingMatch = RegExp(
+                            r'/booking/(\d+)',
+                          ).firstMatch(url);
+                          if (bookingMatch != null &&
+                              onNavigateToDetail != null) {
                             final bookingId = int.parse(bookingMatch.group(1)!);
                             return FilledButton.tonal(
                               onPressed: () => onNavigateToDetail!(bookingId),
@@ -988,12 +1212,17 @@ class _BotBookingCardBubble extends StatelessWidget {
                             onPressed: () async {
                               try {
                                 final uri = Uri.parse(url);
-                                await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                await launchUrl(
+                                  uri,
+                                  mode: LaunchMode.externalApplication,
+                                );
                               } catch (e) {
                                 debugPrint('Error launching URL: $e');
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Tidak dapat membuka link')),
+                                    const SnackBar(
+                                      content: Text('Tidak dapat membuka link'),
+                                    ),
                                   );
                                 }
                               }
@@ -1004,7 +1233,7 @@ class _BotBookingCardBubble extends StatelessWidget {
                         return const SizedBox.shrink();
                       }).toList(),
                     ),
-                  ]
+                  ],
                 ],
               ),
             ),
@@ -1043,7 +1272,13 @@ class _BotTimePickerBubble extends StatelessWidget {
           color: cs.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: cs.outlineVariant),
-          boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 10, offset: Offset(0, 6))],
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0F000000),
+              blurRadius: 10,
+              offset: Offset(0, 6),
+            ),
+          ],
         ),
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -1061,7 +1296,10 @@ class _BotTimePickerBubble extends StatelessWidget {
             ),
             if (date.isNotEmpty) ...[
               const SizedBox(height: 4),
-              Text(date, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+              Text(
+                date,
+                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+              ),
             ],
             const SizedBox(height: 12),
             Wrap(
@@ -1095,7 +1333,10 @@ class _BotTimePickerBubble extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 4),
-                Text('Tersedia', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                Text(
+                  'Tersedia',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                ),
                 const SizedBox(width: 12),
                 Container(
                   width: 12,
@@ -1106,7 +1347,10 @@ class _BotTimePickerBubble extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 4),
-                Text('Terisi', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                Text(
+                  'Terisi',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                ),
               ],
             ),
           ],
@@ -1135,8 +1379,10 @@ class _TypingBubble extends StatelessWidget {
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _Dot(), SizedBox(width: 4),
-            _Dot(), SizedBox(width: 4),
+            _Dot(),
+            SizedBox(width: 4),
+            _Dot(),
+            SizedBox(width: 4),
             _Dot(),
           ],
         ),
@@ -1167,9 +1413,10 @@ class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return FadeTransition(
-      opacity: Tween<double>(begin: .2, end: 1).animate(
-        CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-      ),
+      opacity: Tween<double>(
+        begin: .2,
+        end: 1,
+      ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut)),
       child: const CircleAvatar(radius: 3),
     );
   }

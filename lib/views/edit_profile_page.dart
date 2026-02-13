@@ -1,12 +1,9 @@
-// lib/views/user/edit_profile_page.dart
-
 import 'package:flutter/material.dart';
-import 'package:flutter_bengkelin_user/config/network.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_bengkelin_user/config/model/resp.dart';
-import 'package:flutter_bengkelin_user/model/user_model.dart';
-import 'package:file_picker/file_picker.dart'; // Import file_picker
-import 'dart:io'; // Untuk File
+import 'package:flutter_bengkelin_user/model/kecamatan_model.dart';
+import 'package:flutter_bengkelin_user/model/kelurahan_model.dart';
+import 'package:flutter_bengkelin_user/viewmodel/profile_viewmodel.dart';
+import 'package:flutter_bengkelin_user/viewmodel/service_viewmodel.dart';
 
 class EditProfilePage extends StatefulWidget {
   final String userName;
@@ -14,6 +11,8 @@ class EditProfilePage extends StatefulWidget {
   final String userPhoneNumber;
   final String userAddress;
   final String? userPhotoUrl;
+  final int? kecamatanId;
+  final int? kelurahanId;
 
   const EditProfilePage({
     super.key,
@@ -22,6 +21,8 @@ class EditProfilePage extends StatefulWidget {
     required this.userPhoneNumber,
     required this.userAddress,
     this.userPhotoUrl,
+    this.kecamatanId,
+    this.kelurahanId,
   });
 
   @override
@@ -36,7 +37,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late TextEditingController _addressController;
 
   bool _isLoading = false;
-  File? _selectedImage;
+
+  // Kecamatan & Kelurahan
+  List<KecamatanModel> _kecamatanList = [];
+  List<KelurahanModel> _kelurahanList = [];
+  KecamatanModel? _selectedKecamatan;
+  KelurahanModel? _selectedKelurahan;
+
+  final ProfileViewmodel _profileViewmodel = ProfileViewmodel();
+  final ServiceViewmodel _serviceViewmodel = ServiceViewmodel();
 
   @override
   void initState() {
@@ -45,6 +54,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _emailController = TextEditingController(text: widget.userEmail);
     _phoneController = TextEditingController(text: widget.userPhoneNumber);
     _addressController = TextEditingController(text: widget.userAddress);
+    _fetchKecamatan();
   }
 
   @override
@@ -56,143 +66,110 @@ class _EditProfilePageState extends State<EditProfilePage> {
     super.dispose();
   }
 
-  // Fungsi untuk memilih gambar menggunakan file_picker
-  Future<void> _pickImage() async {
+  Future<void> _fetchKecamatan() async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.image, // Hanya izinkan pemilihan file gambar
-        allowMultiple: false, // Hanya izinkan satu file
-      );
+      final Resp response = await _serviceViewmodel.kecamatan();
+      if (response.code == 200 || response.statusCode == 200) {
+        if (response.data is List) {
+          setState(() {
+            _kecamatanList = (response.data as List)
+                .map<KecamatanModel>((json) => KecamatanModel.fromJson(json))
+                .toList();
 
-      if (result != null && result.files.single.path != null) {
-        setState(() {
-          _selectedImage = File(result.files.single.path!);
-        });
-      } else {
-        // Pengguna membatalkan pemilihan
-        debugPrint('Pemilihan file dibatalkan.');
+            // Set selected kecamatan if user already has one
+            if (widget.kecamatanId != null && widget.kecamatanId != 0) {
+              try {
+                _selectedKecamatan = _kecamatanList
+                    .firstWhere((k) => k.id == widget.kecamatanId);
+                _fetchKelurahan(_selectedKecamatan!.id);
+              } catch (_) {
+                // kecamatan not found in list
+              }
+            }
+          });
+        }
       }
     } catch (e) {
-      debugPrint('Error picking file: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Gagal memilih gambar: $e')));
+      debugPrint("Error fetching kecamatan: $e");
+    }
+  }
+
+  Future<void> _fetchKelurahan(int kecamatanId) async {
+    try {
+      final Resp response =
+          await _serviceViewmodel.kelurahan(kecamatanId: kecamatanId);
+      if (response.code == 200 || response.statusCode == 200) {
+        if (response.data is List) {
+          setState(() {
+            _kelurahanList = (response.data as List)
+                .map<KelurahanModel>((json) => KelurahanModel.fromJson(json))
+                .toList();
+
+            // Set selected kelurahan if user already has one
+            if (widget.kelurahanId != null && widget.kelurahanId != 0) {
+              try {
+                _selectedKelurahan = _kelurahanList
+                    .firstWhere((k) => k.id == widget.kelurahanId);
+              } catch (_) {
+                // kelurahan not found in list
+              }
+            }
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching kelurahan: $e");
     }
   }
 
   Future<void> _updateProfile() async {
-    if (_formKey.currentState!.validate()) {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final Resp resp = await _profileViewmodel.updateProfile(
+        name: _nameController.text,
+        email: _emailController.text,
+        phoneNumber: _phoneController.text,
+        alamat: _addressController.text,
+        kecamatanId: _selectedKecamatan?.id,
+        kelurahanId: _selectedKelurahan?.id,
+      );
+
+      if (!mounted) return;
+
       setState(() {
-        _isLoading = true;
+        _isLoading = false;
       });
 
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? authToken = prefs.getString('auth_token');
-
-      if (authToken == null) {
-        if (!mounted) return;
+      if (resp.code == 200 || resp.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Autentikasi diperlukan. Silakan login ulang.'),
+          SnackBar(
+            content: Text(resp.message ?? 'Profil berhasil diperbarui!'),
           ),
         );
-        setState(() {
-          _isLoading = false;
-        });
-        return;
-      }
-
-      final Map<String, dynamic> requestBody = {
-        'name': _nameController.text,
-        'email': _emailController.text,
-        'phone_number': _phoneController.text,
-        'alamat': _addressController.text,
-      };
-
-      // Handle upload gambar jika ada
-      if (_selectedImage != null) {
-        // Implementasi logika upload file ke server Anda di sini.
-        // Ini akan melibatkan pengiriman multipart/form-data.
-        // Anda perlu memodifikasi kelas Network Anda atau menggunakan library
-        // seperti 'dio' untuk menangani upload file.
-        // Contoh:
-        // try {
-        //   final uploadResult = await Network.uploadFile(
-        //     'https://your-api-base-url.com/upload-profile-picture',
-        //     _selectedImage!,
-        //     {'Authorization': 'Bearer $authToken'},
-        //   );
-        //   // Setelah upload berhasil, Anda mungkin mendapatkan URL gambar baru dari server
-        //   // dan perlu menambahkannya ke requestBody atau memperbarui profil.
-        //   // requestBody['profile_picture_url'] = uploadResult['url'];
-        // } catch (uploadError) {
-        //   debugPrint('Failed to upload image: $uploadError');
-        //   if (!mounted) return;
-        //   ScaffoldMessenger.of(context).showSnackBar(
-        //     SnackBar(content: Text('Gagal mengupload gambar: $uploadError')),
-        //   );
-        //   setState(() { _isLoading = false; });
-        //   return; // Hentikan proses update jika upload gambar gagal
-        // }
-
+        Navigator.pop(context, true);
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'Logika upload gambar ke server perlu diimplementasikan!',
+              resp.message ?? 'Gagal memperbarui profil. Silakan coba lagi.',
             ),
           ),
         );
       }
-
-      const String updateProfileUrl =
-          "https://your-api-base-url.com/user/update-profile";
-
-      try {
-        final responseMap = await Network.putApiWithHeaders(
-          updateProfileUrl,
-          requestBody,
-          {'Authorization': 'Bearer $authToken'},
-        );
-
-        final resp = Resp.fromJson(responseMap);
-
-        if (!mounted) return;
-
-        setState(() {
-          _isLoading = false;
-        });
-
-        if (resp.code == 200 && resp.status == 'success') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(resp.message ?? 'Profil berhasil diperbarui!'),
-            ),
-          );
-          if (resp.data != null) {
-            Navigator.pop(context, UserModel.fromJson(resp.data));
-          } else {
-            Navigator.pop(context, true);
-          }
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                resp.message ?? 'Gagal memperbarui profil. Silakan coba lagi.',
-              ),
-            ),
-          );
-        }
-      } catch (e) {
-        if (!mounted) return;
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Terjadi kesalahan jaringan: $e')),
-        );
-        debugPrint('Error updating profile: $e');
-      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan jaringan: $e')),
+      );
+      debugPrint('Error updating profile: $e');
     }
   }
 
@@ -218,68 +195,68 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Center(
-                      child: Stack(
-                        children: [
-                          CircleAvatar(
-                            radius: 60,
-                            backgroundColor: Colors.grey[200],
-                            backgroundImage: _selectedImage != null
-                                ? FileImage(_selectedImage!)
-                                : (widget.userPhotoUrl != null &&
-                                              widget.userPhotoUrl!.isNotEmpty
-                                          ? NetworkImage(widget.userPhotoUrl!)
-                                          : null)
-                                      as ImageProvider<Object>?,
-                            child:
-                                _selectedImage == null &&
-                                    (widget.userPhotoUrl == null ||
-                                        widget.userPhotoUrl!.isEmpty)
-                                ? ClipOval(
-                                    child: Image.asset(
-                                      'assets/profile1.png',
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                            return const Icon(
-                                              Icons.person,
-                                              size: 60,
-                                              color: Colors.grey,
-                                            );
-                                          },
-                                    ),
-                                  )
-                                : null,
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: GestureDetector(
-                              onTap:
-                                  _pickImage, // Panggil fungsi _pickImage saat diklik
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Colors.teal[700],
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 2,
-                                  ),
-                                ),
-                                child: const Icon(
-                                  Icons.camera_alt,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 30),
+                    // TODO: Photo profile upload - hidden for now
+                    // Center(
+                    //   child: Stack(
+                    //     children: [
+                    //       CircleAvatar(
+                    //         radius: 60,
+                    //         backgroundColor: Colors.grey[200],
+                    //         backgroundImage: _selectedImage != null
+                    //             ? FileImage(_selectedImage!)
+                    //             : (widget.userPhotoUrl != null &&
+                    //                         widget.userPhotoUrl!.isNotEmpty
+                    //                     ? NetworkImage(widget.userPhotoUrl!)
+                    //                     : null)
+                    //                 as ImageProvider<Object>?,
+                    //         child: _selectedImage == null &&
+                    //                 (widget.userPhotoUrl == null ||
+                    //                     widget.userPhotoUrl!.isEmpty)
+                    //             ? ClipOval(
+                    //                 child: Image.asset(
+                    //                   'assets/profile1.png',
+                    //                   fit: BoxFit.cover,
+                    //                   errorBuilder:
+                    //                       (context, error, stackTrace) {
+                    //                     return const Icon(
+                    //                       Icons.person,
+                    //                       size: 60,
+                    //                       color: Colors.grey,
+                    //                     );
+                    //                   },
+                    //                 ),
+                    //               )
+                    //             : null,
+                    //       ),
+                    //       Positioned(
+                    //         bottom: 0,
+                    //         right: 0,
+                    //         child: GestureDetector(
+                    //           onTap: _pickImage,
+                    //           child: Container(
+                    //             padding: const EdgeInsets.all(4),
+                    //             decoration: BoxDecoration(
+                    //               color: Colors.teal[700],
+                    //               shape: BoxShape.circle,
+                    //               border: Border.all(
+                    //                 color: Colors.white,
+                    //                 width: 2,
+                    //               ),
+                    //             ),
+                    //             child: const Icon(
+                    //               Icons.camera_alt,
+                    //               color: Colors.white,
+                    //               size: 20,
+                    //             ),
+                    //           ),
+                    //         ),
+                    //       ),
+                    //     ],
+                    //   ),
+                    // ),
+                    // const SizedBox(height: 30),
 
+                    // Name
                     const Text(
                       'Name',
                       style: TextStyle(
@@ -292,7 +269,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     TextFormField(
                       controller: _nameController,
                       decoration: InputDecoration(
-                        hintText: 'Melissa Peters',
+                        hintText: 'Masukkan nama Anda',
                         filled: true,
                         fillColor: Colors.grey[200],
                         border: OutlineInputBorder(
@@ -313,6 +290,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     ),
                     const SizedBox(height: 20),
 
+                    // Email
                     const Text(
                       'Email',
                       style: TextStyle(
@@ -325,7 +303,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     TextFormField(
                       controller: _emailController,
                       decoration: InputDecoration(
-                        hintText: 'melpeters@gmail.com',
+                        hintText: 'Masukkan email Anda',
                         filled: true,
                         fillColor: Colors.grey[200],
                         border: OutlineInputBorder(
@@ -349,6 +327,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       },
                     ),
                     const SizedBox(height: 20),
+
+                    // Phone
                     const Text(
                       'Nomor Telepon',
                       style: TextStyle(
@@ -382,6 +362,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       },
                     ),
                     const SizedBox(height: 20),
+
+                    // Alamat
                     const Text(
                       'Alamat',
                       style: TextStyle(
@@ -412,6 +394,89 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           return 'Alamat tidak boleh kosong';
                         }
                         return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Kecamatan Dropdown
+                    const Text(
+                      'Kecamatan',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<KecamatanModel>(
+                      initialValue: _selectedKecamatan,
+                      decoration: InputDecoration(
+                        hintText: 'Pilih Kecamatan',
+                        filled: true,
+                        fillColor: Colors.grey[200],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 16,
+                        ),
+                      ),
+                      items: _kecamatanList.map((kecamatan) {
+                        return DropdownMenuItem<KecamatanModel>(
+                          value: kecamatan,
+                          child: Text(kecamatan.name),
+                        );
+                      }).toList(),
+                      onChanged: (KecamatanModel? newValue) {
+                        setState(() {
+                          _selectedKecamatan = newValue;
+                          _selectedKelurahan = null;
+                          _kelurahanList = [];
+                        });
+                        if (newValue != null) {
+                          _fetchKelurahan(newValue.id);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Kelurahan Dropdown
+                    const Text(
+                      'Kelurahan',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<KelurahanModel>(
+                      initialValue: _selectedKelurahan,
+                      decoration: InputDecoration(
+                        hintText: 'Pilih Kelurahan',
+                        filled: true,
+                        fillColor: Colors.grey[200],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 16,
+                        ),
+                      ),
+                      items: _kelurahanList.map((kelurahan) {
+                        return DropdownMenuItem<KelurahanModel>(
+                          value: kelurahan,
+                          child: Text(kelurahan.name),
+                        );
+                      }).toList(),
+                      onChanged: (KelurahanModel? newValue) {
+                        setState(() {
+                          _selectedKelurahan = newValue;
+                        });
                       },
                     ),
                     const SizedBox(height: 32),

@@ -22,4 +22,39 @@ class ProfileViewmodel {
     Resp data = Resp.fromJson(resp);
     return data;
   }
+
+  Future<Resp> updateProfile({
+    required String name,
+    required String email,
+    required String phoneNumber,
+    required String alamat,
+    int? kecamatanId,
+    int? kelurahanId,
+  }) async {
+    String? token = await Session().getUserToken();
+    if (token == null) {
+      return Resp(statusCode: 401, data: null, error: "Token is null");
+    }
+
+    var header = <String, dynamic>{
+      HttpHeaders.authorizationHeader: 'Bearer $token',
+    };
+
+    final Map<String, dynamic> body = {
+      'name': name,
+      'email': email,
+      'phone_number': phoneNumber,
+      'alamat': alamat,
+    };
+
+    if (kecamatanId != null) body['kecamatan_id'] = kecamatanId;
+    if (kelurahanId != null) body['kelurahan_id'] = kelurahanId;
+
+    var resp = await Network.putApiWithHeaders(
+      Endpoint.updateProfileUrl,
+      body,
+      header,
+    );
+    return Resp.fromJson(resp);
+  }
 }
